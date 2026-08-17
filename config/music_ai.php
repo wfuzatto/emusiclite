@@ -27,6 +27,9 @@ return [
     'music_backend_url' => rtrim((string) music_env('MUSIC_AI_GENERATOR_URL', ''), '/'),
     'music_backend_token' => (string) music_env('MUSIC_AI_GENERATOR_TOKEN', ''),
     'music_backend_timeout' => max(60, (int) music_env('MUSIC_AI_GENERATOR_TIMEOUT', 1800)),
+    'stable_audio_url' => rtrim((string) music_env('MUSIC_AI_STABLE_AUDIO_URL', 'http://127.0.0.1:8092'), '/'),
+    'stable_audio_token' => (string) music_env('MUSIC_AI_STABLE_AUDIO_TOKEN', music_env('MUSIC_AI_GENERATOR_TOKEN', '')),
+    'stable_audio_timeout' => max(60, (int) music_env('MUSIC_AI_STABLE_AUDIO_TIMEOUT', 3600)),
     'comfy_url' => rtrim((string) music_env('MUSIC_AI_COMFYUI_URL', 'http://127.0.0.1:8188'), '/'),
     'comfy_workflow' => (string) music_env('MUSIC_AI_COMFYUI_WORKFLOW', ''),
     'comfy_checkpoint' => (string) music_env('MUSIC_AI_COMFYUI_CHECKPOINT', ''),
@@ -40,10 +43,7 @@ return [
     'trust_proxy_https' => music_env_bool('MUSIC_AI_TRUST_PROXY_HTTPS', false),
     'max_audio_mb' => max(10, (int) music_env('MUSIC_AI_MAX_AUDIO_MB', 100)),
     'max_cover_mb' => max(2, (int) music_env('MUSIC_AI_MAX_COVER_MB', 15)),
-    'ffprobe' => (string) music_env(
-        'MUSIC_AI_FFPROBE_BIN',
-        is_executable('/usr/bin/ffprobe') ? '/usr/bin/ffprobe' : '/usr/local/bin/ffprobe'
-    ),
+    'ffprobe' => (string) music_env('MUSIC_AI_FFPROBE_BIN', is_executable('/usr/bin/ffprobe') ? '/usr/bin/ffprobe' : '/usr/local/bin/ffprobe'),
     'min_free_vram_mb' => max(512, (int) music_env('MUSIC_AI_MIN_FREE_VRAM_MB', 5200)),
     'ebook_host' => (string) music_env('MUSIC_AI_EBOOK_DB_HOST', ''),
     'ebook_port' => (int) music_env('MUSIC_AI_EBOOK_DB_PORT', 3306),
