@@ -28,16 +28,28 @@ class HttpMusicGenerationService implements MusicGenerationService
         curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($specification, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), CURLOPT_HTTPHEADER => $headers, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => $this->config['music_backend_timeout']]);
         $body = curl_exec($ch); $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); $error = curl_error($ch); curl_close($ch);
         if ($body === false || $status < 200 || $status >= 300) {
+            $detail = $this->extractErrorDetail($body);
             if ($status >= 400 && $status < 500 && !in_array($status, [408, 409, 429], true)) {
-                throw new MusicPermanentException('A configuração atual do gerador não suporta esta música vocal. Selecione um backend com GPU compatível e tente novamente.');
+                throw new MusicPermanentException($detail !== '' ? $detail : 'O gerador rejeitou os parâmetros desta música.');
             }
-            throw new MusicTransientException('Gerador musical indisponível' . ($error ? ': ' . $error : '.'));
+            $message = $detail !== '' ? $detail : ($error ? $error : 'Gerador musical indisponível.');
+            throw new MusicTransientException($message);
         }
         $result = json_decode($body, true);
         $url = is_array($result) ? (string) ($result['audio_url'] ?? '') : '';
         if ($url === '' || !preg_match('#^https?://#i', $url)) throw new MusicTransientException('Gerador musical não retornou audio_url válido.');
         $this->download($url, $destinationPath);
         return ['backend' => 'http', 'backend_job_id' => (string) ($result['job_id'] ?? ''), 'path' => $destinationPath];
+    }
+
+    private function extractErrorDetail($body): string
+    {
+        if (!is_string($body) || trim($body) === '') return '';
+        $decoded = json_decode($body, true);
+        if (!is_array($decoded)) return '';
+        $detail = $decoded['detail'] ?? $decoded['message'] ?? '';
+        if (is_array($detail)) $detail = json_encode($detail, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return is_string($detail) ? trim($detail) : '';
     }
 
     private function download(string $url, string $destination): void
