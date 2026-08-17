@@ -1,0 +1,22 @@
+[Unit]
+Description=MusicLite Stable Audio Open experimental backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=musiclite
+Group=musiclite
+EnvironmentFile=/etc/musiclite/worker.env
+WorkingDirectory=/opt/musiclite/app/ops/generator
+ExecStart=/opt/musiclite/stable-audio-venv/bin/python /opt/musiclite/app/ops/generator/musiclite_stable_audio_api.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/musiclite
+
+[Install]
+WantedBy=multi-user.target
