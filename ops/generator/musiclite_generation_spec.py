@@ -19,6 +19,7 @@ GENERATION_MODELS = {
     "turbo": "acestep-v15-turbo",
     "shift1": "acestep-v15-turbo-shift1",
     "shift3": "acestep-v15-turbo-shift3",
+    "xl_sft": "acestep-v15-xl-sft",
 }
 
 
@@ -36,7 +37,7 @@ def build_ace_spec(payload: dict[str, Any], *, max_duration: int = 180) -> dict[
 
     model_key = _text(payload.get("generation_model") or "turbo", 20).lower()
     if model_key not in GENERATION_MODELS:
-        raise ValueError("O modelo de geração selecionado é inválido.")
+        raise ValueError("O modelo ACE-Step selecionado é inválido.")
 
     instrumental = bool(payload.get("instrumental", False))
     lyrics = _text(payload.get("lyrics"), 12000)
@@ -51,6 +52,8 @@ def build_ace_spec(payload: dict[str, Any], *, max_duration: int = 180) -> dict[
         raise ValueError("A duração é inválida.") from exc
     if duration < 10 or duration > max_duration:
         raise ValueError(f"A duração deve ficar entre 10 e {max_duration} segundos.")
+    if model_key == "xl_sft" and duration > 30:
+        raise ValueError("O XL SFT 4B experimental está limitado a 30 segundos neste servidor.")
 
     bpm_raw = payload.get("bpm")
     bpm = None
