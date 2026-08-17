@@ -15,15 +15,18 @@ class TrackService
             if (trim((string) ($input[$key] ?? '')) === '') throw new InvalidArgumentException('Preencha todos os campos obrigatórios.');
         }
         if (!in_array($input['composition_type'], ['INSTRUMENTAL','VOCAL'], true)) throw new InvalidArgumentException('Tipo de composição inválido.');
-        $duration = max(30, min(600, (int) ($input['desired_duration_seconds'] ?? 180)));
+        $duration = max(30, min(180, (int) ($input['desired_duration_seconds'] ?? 180)));
         $bpm = !empty($input['bpm']) ? max(40, min(240, (int) $input['bpm'])) : null;
         $source = ($context['source'] ?? 'USER') === 'AGENT' ? 'AGENT' : 'USER';
+        $generationModel = trim((string) ($input['generation_model'] ?? 'turbo'));
+        if (!in_array($generationModel, ['turbo','shift1','shift3'], true)) throw new InvalidArgumentException('Modelo de geração inválido.');
+        $generationState = json_encode(['generation_model' => $generationModel], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $fields = [];
         foreach (['genre','subgenre','mood','theme','language','composition_type','voice_type','instruments','descriptive_references','original_idea'] as $key) {
             $fields[$key] = mb_substr(trim((string) ($input[$key] ?? '')), 0, $key === 'original_idea' ? 8000 : ($key === 'instruments' || $key === 'descriptive_references' ? 3000 : 255));
         }
-        $stmt = $this->db->prepare("INSERT INTO music_ai_tracks(owner_user_id,source,genre,subgenre,mood,theme,language,composition_type,desired_duration_seconds,bpm,voice_type,instruments,descriptive_references,original_idea,status,current_stage,progress_percent) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'QUEUED','Projeto criado',5)");
-        $stmt->bind_param('isssssssiissss', $userId, $source, $fields['genre'], $fields['subgenre'], $fields['mood'], $fields['theme'], $fields['language'], $fields['composition_type'], $duration, $bpm, $fields['voice_type'], $fields['instruments'], $fields['descriptive_references'], $fields['original_idea']);
+        $stmt = $this->db->prepare("INSERT INTO music_ai_tracks(owner_user_id,source,genre,subgenre,mood,theme,language,composition_type,desired_duration_seconds,bpm,voice_type,instruments,descriptive_references,original_idea,generation_state,status,current_stage,progress_percent) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'QUEUED','Projeto criado',5)");
+        $stmt->bind_param('isssssssiisssss', $userId, $source, $fields['genre'], $fields['subgenre'], $fields['mood'], $fields['theme'], $fields['language'], $fields['composition_type'], $duration, $bpm, $fields['voice_type'], $fields['instruments'], $fields['descriptive_references'], $fields['original_idea'], $generationState);
         $stmt->execute(); $trackId = (int) $stmt->insert_id; $stmt->close();
         try {
             (new QueueService($this->db))->enqueue($userId, $trackId, (string) ($context['operation_key'] ?? 'track:pipeline:' . $trackId), 'PIPELINE', $context, $context['agent_run_id'] ?? null);
