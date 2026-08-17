@@ -17,38 +17,32 @@ class ResourceGuard
         ];
     }
 
-    public function assertHeavyWorkAllowed(bool $needsComfy = false): void
+    public function assertHeavyWorkAllowed(bool $needsComfy = false, bool $requiresGpu = true): void
     {
         $state = $this->inspect();
         if ($state['ebook_processing'] > 0) throw new MusicResourceBusyException('Recursos reservados para um trabalho do eBookLite.');
-        if ($state['free_vram_mb'] === null) throw new MusicResourceBusyException('Não foi possível confirmar a memória livre da GPU.');
-        if ($state['free_vram_mb'] < $this->config['min_free_vram_mb']) throw new MusicResourceBusyException('Memória de GPU insuficiente; a música continuará pendente.');
-        // Audio generation does not use ComfyUI.  This distinction allows a
-        // short, explicitly controlled ComfyUI pause to release CUDA memory
-        // for a vocal render; cover generation always requires it online.
+        if ($requiresGpu) {
+            if ($state['free_vram_mb'] === null) throw new MusicResourceBusyException('Não foi possível confirmar a memória livre da GPU.');
+            if ($state['free_vram_mb'] < $this->config['min_free_vram_mb']) throw new MusicResourceBusyException('Memória de GPU insuficiente; a música continuará pendente.');
+        }
         if ($needsComfy) {
             if (empty($state['comfy']['online'])) throw new MusicResourceBusyException('Não foi possível confirmar a fila do ComfyUI.');
             if (($state['comfy']['running'] ?? 0) > 0 || ($state['comfy']['pending'] ?? 0) > 0) throw new MusicResourceBusyException('A fila existente do ComfyUI tem prioridade.');
         }
     }
 
-    public function withHeavySlot(bool $needsComfy, callable $operation)
+    public function withHeavySlot(bool $needsComfy, callable $operation, bool $requiresGpu = true)
     {
         $row = $this->db->query("SELECT GET_LOCK('musiclite_heavy_generation',0)")->fetch_row();
         if ((int) ($row[0] ?? 0) !== 1) throw new MusicResourceBusyException('Outra geração musical pesada já está em andamento.');
         try {
-            $this->assertHeavyWorkAllowed($needsComfy);
+            $this->assertHeavyWorkAllowed($needsComfy, $requiresGpu);
             return $operation();
         } finally {
             $this->db->query("SELECT RELEASE_LOCK('musiclite_heavy_generation')");
         }
     }
 
-    /**
-     * Text planning uses the existing Ollama API and is not an audio/cover
-     * render.  It must still yield to eBookLite jobs, but must not wait for
-     * the large free-VRAM reservation required by ACE-Step or ComfyUI.
-     */
     public function withTextSlot(callable $operation)
     {
         $row = $this->db->query("SELECT GET_LOCK('musiclite_text_generation',0)")->fetch_row();
@@ -73,8 +67,7 @@ class ResourceGuard
 
     private function ebookProcessing(): int
     {
-        try {
-            return (new EbookQueueStatusService($this->db, $this->config))->processingCount();
-        } catch (Throwable $e) { throw new MusicResourceBusyException('Não foi possível confirmar a fila do eBookLite.'); }
+        try { return (new EbookQueueStatusService($this->db, $this->config))->processingCount(); }
+        catch (Throwable $e) { throw new MusicResourceBusyException('Não foi possível confirmar a fila do eBookLite.'); }
     }
 }
