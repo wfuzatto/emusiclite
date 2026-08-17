@@ -229,7 +229,7 @@ FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM music_ai_users WHERE internal_code='AG
 INSERT IGNORE INTO music_ai_settings(setting_key,setting_value,description) VALUES
 ('ai_enabled','1','Ativa a criação de músicas por IA'),
 ('max_active_tracks','3','Projetos incompletos por usuário'),
-('max_generations_per_day','5','Projetos criados por usuário por dia'),
+('max_generations_per_day','100','Projetos criados por usuário por dia'),
 ('daily_agent_enabled','1','Ativa a criação editorial diária'),
 ('daily_agent_time','04:30','Horário diário no fuso do worker; deve diferir do agente de livros'),
 ('daily_agent_duration_seconds','180','Duração alvo da música editorial'),
