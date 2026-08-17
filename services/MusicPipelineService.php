@@ -55,7 +55,8 @@ class MusicPipelineService
                 $this->stage($job, 'Aguardando recursos para gerar áudio', 35); $lyrics = $this->loadLyrics($trackId);
                 $spec = ['prompt'=>$plan['audio_prompt'],'lyrics'=>$lyrics['lyrics_text'],'instrumental'=>$track['composition_type']==='INSTRUMENTAL','duration_seconds'=>(int)$track['desired_duration_seconds'],'genre'=>$track['genre'],'subgenre'=>$track['subgenre'],'mood'=>$track['mood'],'theme'=>$track['theme'],'language'=>$track['language'],'bpm'=>$track['bpm'],'key'=>$plan['key'],'voice_type'=>$track['voice_type'],'instruments'=>$plan['instruments'],'structure'=>$plan['structure'],'descriptive_references'=>$track['descriptive_references'],'generation_model'=>$generationModel];
                 $this->stage($job, 'Gerando áudio', 45);
-                $result = $this->withHeartbeat($job, 'Gerando áudio', fn() => (new ResourceGuard($this->db, $this->config))->withHeavySlot(false, fn() => MusicGenerationFactory::create($this->config)->generate($spec, $audioPath)));
+                $requiresGpu = $generationModel !== 'stable_audio';
+                $result = $this->withHeartbeat($job, 'Gerando áudio', fn() => (new ResourceGuard($this->db, $this->config))->withHeavySlot(false, fn() => MusicGenerationFactory::create($this->config)->generate($spec, $audioPath), $requiresGpu));
                 $state = array_merge($state, ['audio_path'=>$audioPath,'audio_backend'=>$result,'generation_model'=>$generationModel]);
                 $this->tracks->markCheckpoint($trackId, 'audio_generated_at', 'Áudio gerado', 60, $state);
             }
