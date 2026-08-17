@@ -15,6 +15,12 @@ LANGUAGE_CODES = {
     "espanhol": "es",
 }
 
+GENERATION_MODELS = {
+    "turbo": "acestep-v15-turbo",
+    "shift1": "acestep-v15-turbo-shift1",
+    "shift3": "acestep-v15-turbo-shift3",
+}
+
 
 def _text(value: Any, limit: int) -> str:
     return " ".join(str(value or "").strip().split())[:limit]
@@ -27,6 +33,10 @@ def build_ace_spec(payload: dict[str, Any], *, max_duration: int = 180) -> dict[
     prompt = _text(payload.get("prompt"), 6000)
     if not prompt:
         raise ValueError("O prompt musical é obrigatório.")
+
+    model_key = _text(payload.get("generation_model") or "turbo", 20).lower()
+    if model_key not in GENERATION_MODELS:
+        raise ValueError("O modelo de geração selecionado é inválido.")
 
     instrumental = bool(payload.get("instrumental", False))
     lyrics = _text(payload.get("lyrics"), 12000)
@@ -83,5 +93,6 @@ def build_ace_spec(payload: dict[str, Any], *, max_duration: int = 180) -> dict[
         "keyscale": _text(payload.get("key"), 40),
         "timesignature": "4",
         "vocal_language": language_code,
+        "model": GENERATION_MODELS[model_key],
+        "model_key": model_key,
     }
-
