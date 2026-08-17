@@ -1,0 +1,9 @@
+[Unit]
+Description=MusicLite worker heartbeat watchdog
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=/etc/musiclite/worker.env
+ExecStart=/bin/sh -c '/usr/bin/php /opt/musiclite/workers/worker_watchdog.php || /usr/bin/systemctl restart musiclite-worker.service'

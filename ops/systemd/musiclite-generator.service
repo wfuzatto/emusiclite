@@ -1,0 +1,27 @@
+[Unit]
+Description=MusicLite isolated ACE-Step generator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=musiclite
+Group=musiclite
+WorkingDirectory=/opt/musiclite/generator
+EnvironmentFile=/etc/musiclite/worker.env
+Environment=PYTHONPATH=/opt/musiclite/api:/opt/musiclite/generator
+ExecStart=/opt/musiclite/venv/bin/python /opt/musiclite/api/musiclite_generator_api.py
+Restart=always
+RestartSec=10
+TimeoutStopSec=45
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/musiclite /var/log/musiclite
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
+

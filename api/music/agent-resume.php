@@ -1,0 +1,2 @@
+<?php
+require __DIR__.'/../../includes/bootstrap.php';require_once __DIR__.'/../../services/DailyMusicAgentService.php';music_api_post();music_require_admin($mysqli);music_api_csrf();$id=(int)($_POST['run_id']??0);try{(new DailyMusicAgentService($mysqli))->resume($id);music_json(['ok'=>true,'message'=>'Retomada colocada na fila.']);}catch(Throwable $e){music_json(['ok'=>false,'message'=>'A execução não pôde ser retomada.'],409);}

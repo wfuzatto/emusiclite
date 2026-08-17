@@ -1,0 +1,2 @@
+<?php
+require __DIR__.'/../../includes/bootstrap.php';require_once __DIR__.'/../../services/DailyMusicAgentService.php';music_api_post();$admin=music_require_admin($mysqli);music_api_csrf();try{$result=(new DailyMusicAgentService($mysqli))->createManual((int)$admin['id']);music_json(['ok'=>true,'result'=>$result,'message'=>'Criação editorial iniciada.']);}catch(Throwable $e){music_json(['ok'=>false,'message'=>'Não foi possível iniciar o agente.'],500);}

@@ -1,0 +1,26 @@
+[Unit]
+Description=MusicLite persistent AI worker
+Wants=network-online.target musiclite-generator.service
+After=network-online.target musiclite-generator.service
+
+[Service]
+Type=simple
+User=musiclite
+Group=musiclite
+WorkingDirectory=/opt/musiclite
+EnvironmentFile=/etc/musiclite/worker.env
+ExecStartPre=/usr/bin/php /opt/musiclite/workers/worker_preflight.php
+ExecStart=/usr/bin/php /opt/musiclite/workers/music_worker.php --daemon
+ExecStopPost=/usr/bin/php /opt/musiclite/workers/worker_stopped.php
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/musiclite /var/log/musiclite
+
+[Install]
+WantedBy=multi-user.target

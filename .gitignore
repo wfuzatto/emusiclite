@@ -1,0 +1,11 @@
+.env
+storage/music-ai/*
+!storage/music-ai/.gitkeep
+!storage/music-ai/.htaccess
+*.obsolete-*
+.DS_Store
+__pycache__/
+*.py[cod]
+*.log
+/ops/generator/init_service_orchestrator.py
+/ops/local/fallback_track_15.php
