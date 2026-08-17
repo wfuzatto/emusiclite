@@ -23,7 +23,18 @@ class MusicLiteGeneratorSpecTest(unittest.TestCase):
         self.assertEqual("pt", spec["vocal_language"])
         self.assertEqual(60.0, spec["duration"])
         self.assertEqual(140, spec["bpm"])
+        self.assertEqual("acestep-v15-turbo", spec["model"])
         self.assertIn("genre: eletrohits", spec["caption"])
+
+    def test_maps_shift_models(self):
+        shift1 = build_ace_spec({"prompt": "original ambient", "instrumental": True, "generation_model": "shift1"})
+        shift3 = build_ace_spec({"prompt": "original ambient", "instrumental": True, "generation_model": "shift3"})
+        self.assertEqual("acestep-v15-turbo-shift1", shift1["model"])
+        self.assertEqual("acestep-v15-turbo-shift3", shift3["model"])
+
+    def test_rejects_unknown_model(self):
+        with self.assertRaisesRegex(ValueError, "modelo"):
+            build_ace_spec({"prompt": "original ambient", "instrumental": True, "generation_model": "unknown"})
 
     def test_rejects_vocal_without_lyrics(self):
         with self.assertRaisesRegex(ValueError, "letra"):
@@ -40,4 +51,3 @@ class MusicLiteGeneratorSpecTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
