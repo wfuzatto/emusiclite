@@ -19,9 +19,9 @@ class TrackService
         $bpm = !empty($input['bpm']) ? max(40, min(240, (int) $input['bpm'])) : null;
         $source = ($context['source'] ?? 'USER') === 'AGENT' ? 'AGENT' : 'USER';
         $generationModel = trim((string) ($input['generation_model'] ?? 'turbo'));
-        if (!in_array($generationModel, ['turbo','shift1','shift3','xl_sft','stable_audio'], true)) throw new InvalidArgumentException('Modelo de geração inválido.');
-        if (in_array($generationModel, ['xl_sft','stable_audio'], true) && $duration > 30) throw new InvalidArgumentException('Os modelos experimentais estão limitados a 30 segundos.');
-        if ($generationModel === 'stable_audio' && $input['composition_type'] !== 'INSTRUMENTAL') throw new InvalidArgumentException('Stable Audio Open está disponível somente para instrumental.');
+        if (!in_array($generationModel, ['turbo','shift1','shift3','xl_sft','stable_audio','studio_midi'], true)) throw new InvalidArgumentException('Modelo de geração inválido.');
+        if (in_array($generationModel, ['xl_sft','stable_audio'], true) && $duration > 30) throw new InvalidArgumentException('Os modelos experimentais XL SFT e Stable Audio estão limitados a 30 segundos.');
+        if (in_array($generationModel, ['stable_audio','studio_midi'], true) && $input['composition_type'] !== 'INSTRUMENTAL') throw new InvalidArgumentException('O modelo selecionado está disponível somente para instrumental.');
         $generationState = json_encode(['generation_model' => $generationModel], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $fields = [];
         foreach (['genre','subgenre','mood','theme','language','composition_type','voice_type','instruments','descriptive_references','original_idea'] as $key) {
