@@ -20,6 +20,11 @@ if($config['music_backend']==='http'){
   if(in_array($port,[11434,8188],true))$errors[]='A porta do gerador musical não pode ser 11434 nem 8188.';
   if(strlen($config['music_backend_token'])<32)$errors[]='MUSIC_AI_GENERATOR_TOKEN deve ter ao menos 32 caracteres.';
 }
+if(($config['studio_url']??'')!==''){
+  $parts=parse_url($config['studio_url']);$port=(int)($parts['port']??0);
+  if($port!==8093)$warnings[]='Studio Real está configurado em porta diferente de 8093; confirme que ela é exclusiva do MusicLite.';
+  if(strlen((string)($config['studio_token']??''))<32)$errors[]='MUSIC_AI_STUDIO_TOKEN deve ter ao menos 32 caracteres.';
+}
 if($config['comfy_workflow']===''||!is_readable($config['comfy_workflow']))$errors[]='Workflow de capa do ComfyUI não pode ser lido.';
 if(trim((string)($config['comfy_checkpoint']??''))==='')$errors[]='MUSIC_AI_COMFYUI_CHECKPOINT não foi configurado.';
 try{$ebookGuard=new EbookQueueStatusService($mysqli,$config);$ebookGuard->processingCount();}catch(Throwable $e){$errors[]='Sem acesso de leitura a ebook_ai_jobs; a geração musical não pode proteger a fila de livros.';}
