@@ -3,7 +3,7 @@ from .midi_tools import write_midi, make_tempo_map
 from .genres import normalize_genre
 from .song_form import make_form
 from .drumgizmo import note_map
-from .musicians import hq3, funk
+from .musicians import hq3, funk, hiphop
 
 def create_test_midis(work: Path, seconds=60, bpm=126, genre="sertanejo"):
     genre=normalize_genre(genre)
@@ -11,7 +11,16 @@ def create_test_midis(work: Path, seconds=60, bpm=126, genre="sertanejo"):
     form=make_form(bars,genre)
     tempo=make_tempo_map(bpm,bars,form=form)
 
-    if genre=="funk":
+    if genre=="hiphop":
+        drums={}
+        specs={
+            "drums": hiphop.hiphop_drums,
+            "sub": hiphop.hiphop_sub,
+            "piano": hiphop.hiphop_piano,
+            "brass": hiphop.hiphop_brass,
+            "strings": hiphop.hiphop_strings,
+        }
+    elif genre=="funk":
         drums={}
         specs={
             "drums": funk.funk_drums,
