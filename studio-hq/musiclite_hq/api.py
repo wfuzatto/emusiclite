@@ -15,7 +15,7 @@ from .drumgizmo import render_multimic, available as drumgizmo_available
 from .drum_mix import mix_multimic
 from .neural import neuralize_reference, publish_best
 
-app = FastAPI(title="MusicLite Studio HQ + Neural", version="0.4.0")
+app = FastAPI(title="MusicLite Studio HQ + Neural", version="0.5.0")
 
 
 class TestReq(BaseModel):
@@ -38,13 +38,14 @@ def health():
     libs = all_instruments()
     return {
         "ok": True,
-        "version": "0.4.0",
-        "hq_reference_engine": "0.3",
+        "version": "0.5.0",
+        "hq_reference_engine": "0.5",
         "neural_engine": "ace-step-1.5-cover",
         "neural_configured": len(NEURAL_GENERATOR_TOKEN) >= 32,
         "neural_generator_url": NEURAL_GENERATOR_URL,
         "supported_genres": list(genre_info().keys()),
         "drumgizmo_multimic": drumgizmo_available(),
+        "funk_engine_ready": bool(libs.get("funk_kit") and libs.get("funk_808")),
         "libraries": {k: (str(v) if v else None) for k, v in libs.items()},
     }
 
@@ -67,64 +68,79 @@ def _render_reference(req: TestReq) -> dict:
         libs = instruments(genre)
         missing = [k for k, v in libs.items() if not v]
         if missing:
-            raise RuntimeError(f"Bibliotecas ausentes para {genre}: " + ", ".join(missing))
+            hint = " Rode studio-hq/install_funk_hq.sh." if genre == "funk" else ""
+            raise RuntimeError(f"Bibliotecas ausentes para {genre}: " + ", ".join(missing) + hint)
 
         midis, bars, form = create_test_midis(work, req.seconds, req.bpm, genre)
         stems = {}
         render_info = {"drums_engine": "sfz_fallback", "library_fallbacks": {}}
 
-        try:
-            dg = render_multimic(midis["drums"], work, genre)
-        except Exception as exc:
-            dg = None
-            render_info["drumgizmo_error"] = str(exc)
-
-        if dg:
-            drums = work / "drums_multimic.wav"
-            mix_multimic(dg["channels"], drums, genre)
-            stems["drums"] = drums
+        if genre == "funk":
+            for name,midi in midis.items():
+                wav=work/f"{name}_raw.wav"
+                render_sfz(libs[name],midi,wav)
+                stems[name]=wav
             render_info.update({
-                "drums_engine": "drumgizmo_multimic",
-                "drumkit": dg["kit"],
-                "drum_channels": [str(x) for x in dg["channels"]],
+                "drums_engine":"funk_hq05_vcsl_hybrid",
+                "sub_engine":"musiclite_808_sfz",
+                "groove_engine":"funk_carioca_humanized_16th",
             })
         else:
-            fallback = all_instruments()["drums_fallback"]
-            if not fallback:
-                raise RuntimeError("Nem DrumGizmo nem bateria SFZ fallback estão disponíveis.")
-            wav = work / "drums_raw.wav"
-            render_sfz(fallback, midis["drums"], wav)
-            stems["drums"] = wav
-
-        for name, midi in midis.items():
-            if name == "drums":
-                continue
-            wav = work / f"{name}_raw.wav"
-            selected = libs[name]
             try:
-                render_sfz(selected, midi, wav)
+                dg = render_multimic(midis["drums"], work, genre)
             except Exception as exc:
-                fallback = fallback_instrument(name, genre)
-                if not fallback or fallback == selected:
-                    raise
-                render_info["library_fallbacks"][name] = {
-                    "requested": str(selected),
-                    "fallback": str(fallback),
-                    "reason": str(exc),
-                }
-                render_sfz(fallback, midi, wav)
-                libs[name] = fallback
-            stems[name] = wav
+                dg = None
+                render_info["drumgizmo_error"] = str(exc)
 
-        final = OUTPUT / f"{job}-{genre}-hq3-reference.wav"
+            if dg:
+                drums = work / "drums_multimic.wav"
+                mix_multimic(dg["channels"], drums, genre)
+                stems["drums"] = drums
+                render_info.update({
+                    "drums_engine": "drumgizmo_multimic",
+                    "drumkit": dg["kit"],
+                    "drum_channels": [str(x) for x in dg["channels"]],
+                })
+            else:
+                fallback = all_instruments()["drums_fallback"]
+                if not fallback:
+                    raise RuntimeError("Nem DrumGizmo nem bateria SFZ fallback estão disponíveis.")
+                wav = work / "drums_raw.wav"
+                render_sfz(fallback, midis["drums"], wav)
+                stems["drums"] = wav
+
+            for name, midi in midis.items():
+                if name == "drums":
+                    continue
+                wav = work / f"{name}_raw.wav"
+                selected = libs[name]
+                try:
+                    render_sfz(selected, midi, wav)
+                except Exception as exc:
+                    fallback = fallback_instrument(name, genre)
+                    if not fallback or fallback == selected:
+                        raise
+                    render_info["library_fallbacks"][name] = {
+                        "requested": str(selected),
+                        "fallback": str(fallback),
+                        "reason": str(exc),
+                    }
+                    render_sfz(fallback, midi, wav)
+                    libs[name] = fallback
+                stems[name] = wav
+
+        engine_suffix="hq5-reference" if genre=="funk" else "hq3-reference"
+        final = OUTPUT / f"{job}-{genre}-{engine_suffix}.wav"
         mix_master(stems, final, work, genre)
         credits = []
         if render_info["drums_engine"] == "drumgizmo_multimic":
             credits.append("Drum samples rendered from DrumGizmo.org kit; see upstream kit license/attribution.")
+        if genre == "funk":
+            credits.append("Organic percussion layers from VCSL (CC0); electronic kick/tamborzao/hats/808 generated locally by MusicLite.")
         manifest = {
             "job": job,
-            "version": "0.4.0",
-            "render_mode": "hq3_reference",
+            "version": "0.5.0",
+            "render_mode": "hq5_funk_reference" if genre=="funk" else "hq3_reference",
             "genre": genre,
             "prompt": req.prompt,
             "bpm": req.bpm,
@@ -152,7 +168,7 @@ def render_test(req: TestReq):
 
 @app.post("/render/neural")
 def render_neural(req: NeuralReq):
-    """HQ3 reference -> ACE-Step continuous neural takes -> ranked best take."""
+    """HQ reference -> ACE-Step continuous neural takes -> ranked best take."""
     reference = _render_reference(TestReq(seconds=req.seconds, bpm=req.bpm, genre=req.genre, prompt=req.prompt))
     genre = reference["genre"]
     work = WORK / reference["job"]
@@ -167,7 +183,7 @@ def render_neural(req: NeuralReq):
         publish_best(result, target)
         manifest = {
             "job": reference["job"],
-            "version": "0.4.0",
+            "version": "0.5.0",
             "render_mode": "neural_hybrid",
             "genre": genre,
             "prompt": req.prompt,
