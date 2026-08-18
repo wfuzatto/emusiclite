@@ -1,9 +1,8 @@
 """Client/orchestrator for the local ACE-Step Neural Studio backend.
 
 HQ 0.7 keeps the deterministic reference as the musical director, then uses
-ACE-Step Cover for texture/timbre realism. Electronic genres get their own
-caption, candidate preference, and final mastering instead of inheriting the
-acoustic-band wording used by rock/sertanejo.
+ACE-Step Cover for texture/timbre realism. Each genre gets its own production
+caption, candidate preference, and final mastering profile.
 """
 from __future__ import annotations
 
@@ -55,11 +54,15 @@ def build_production_caption(genre: str, prompt: str | None) -> str:
     profiles = {
         "rock": (
             "professional modern rock studio production, human band performance, realistic acoustic drums, "
-            "organic electric guitars and bass, coherent room depth, expressive microtiming, natural attacks and releases"
+            "organic electric guitars and bass, coherent room depth, expressive microtiming, natural attacks and releases, "
+            "real amplifier and cabinet character, believable cymbal decay, preserved drummer dynamics, no MIDI feel, "
+            "no synthetic guitar texture, no cheap sampler feel"
         ),
         "sertanejo": (
             "contemporary Brazilian sertanejo universitario studio production, real steel-string acoustic guitar, "
-            "natural acoustic drums and electric bass, tasteful accordion and piano, human phrasing, believable room acoustics"
+            "natural acoustic drums and electric bass, tasteful accordion and piano, human phrasing, believable room acoustics, "
+            "organic strumming and picking detail, natural drum ghost notes and fills, expressive section dynamics, "
+            "no MIDI feel, no synthetic acoustic guitar, no cheap sampler feel"
         ),
         "funk": (
             "authentic modern Brazilian funk carioca baile production, preserve the exact tamborzao swing and syncopation, "
@@ -86,15 +89,17 @@ def _genre_preference(genre: str, candidate: dict[str, Any], target_strength: fl
     corr = float(corr) if corr is not None else 0.0
     strength = candidate.get("cover_strength")
     if strength is None:
-        # Free text-to-music can be interesting for acoustic genres, but for
-        # electronic groove references it is much more likely to lose the beat.
-        strength_bonus = -12.0 if genre in {"funk", "hiphop"} else -1.0
+        # Free text-to-music can be interesting, but for controlled quality
+        # comparisons we prefer keeping the deterministic musical director.
+        strength_bonus = -12.0 if genre in {"funk", "hiphop"} else -3.0
     else:
         distance = abs(float(strength) - float(target_strength))
         strength_bonus = max(-8.0, 7.0 - distance * 30.0)
     structure_bonus = max(-4.0, min(8.0, corr * 8.0))
     if genre in {"funk", "hiphop"}:
         structure_bonus *= 1.35
+    elif genre in {"rock", "sertanejo"}:
+        structure_bonus *= 1.15
     return technical + strength_bonus + structure_bonus
 
 
@@ -137,9 +142,9 @@ def neuralize_reference(
     reference = Path(reference).resolve()
     info = sf.info(str(reference))
     measured_duration = round(float(info.frames) / float(info.samplerate), 3)
-    # For electronic genres a free text2music candidate usually destroys the
-    # deterministic groove. Keep all takes in Cover mode unless explicitly
-    # using the backend directly.
+    # Electronic genres should always preserve the deterministic groove. For
+    # acoustic genres the caller may still enable a free exploratory take, but
+    # maximum-quality test commands intentionally disable it.
     effective_exploration = bool(exploration) and genre not in {"funk", "hiphop"}
     payload = {
         "source_audio": str(reference),
@@ -157,6 +162,24 @@ def neuralize_reference(
 
 
 def _master_filter(genre: str) -> str | None:
+    if genre == "rock":
+        return (
+            "highpass=f=24,"
+            "equalizer=f=285:t=q:w=1.0:g=-0.55,"
+            "equalizer=f=3300:t=q:w=.9:g=.45,"
+            "acompressor=threshold=.32:ratio=1.16:attack=32:release=180:makeup=1.01,"
+            "alimiter=limit=.96,"
+            "loudnorm=I=-12:TP=-1.0:LRA=9"
+        )
+    if genre == "sertanejo":
+        return (
+            "highpass=f=25,"
+            "equalizer=f=250:t=q:w=1.0:g=-0.55,"
+            "equalizer=f=4200:t=q:w=.9:g=.4,"
+            "acompressor=threshold=.32:ratio=1.18:attack=30:release=170:makeup=1.01,"
+            "alimiter=limit=.96,"
+            "loudnorm=I=-11.5:TP=-1.0:LRA=8"
+        )
     if genre == "funk":
         return (
             "highpass=f=20,"
@@ -192,8 +215,8 @@ def publish_best(neural_result: dict[str, Any], target: str | Path, genre: str |
         shutil.copy2(best, target)
         return target
     # Keep the ACE take untouched in the generator output and publish a final
-    # club/mastering pass as the Studio HQ result. Fall back to raw copy if the
-    # local ffmpeg build rejects a filter.
+    # genre-specific mastering pass as the Studio HQ result. Fall back to raw
+    # copy if the local ffmpeg build rejects a filter.
     try:
         subprocess.run(
             [
