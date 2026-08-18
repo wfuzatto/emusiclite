@@ -15,7 +15,7 @@ from .drumgizmo import render_multimic, available as drumgizmo_available
 from .drum_mix import mix_multimic
 from .neural import neuralize_reference, publish_best
 
-app = FastAPI(title="MusicLite Studio HQ + Neural", version="0.6.0")
+app = FastAPI(title="MusicLite Studio HQ + Neural", version="0.8.0")
 
 class TestReq(BaseModel):
     seconds: int = Field(60, ge=15, le=300)
@@ -35,8 +35,8 @@ def health():
     libs = all_instruments()
     return {
         "ok": True,
-        "version": "0.6.0",
-        "hq_reference_engine": "0.6",
+        "version": "0.8.0",
+        "hq_reference_engine": "0.8",
         "neural_engine": "ace-step-1.5-cover-hq07",
         "neural_configured": len(NEURAL_GENERATOR_TOKEN) >= 32,
         "neural_generator_url": NEURAL_GENERATOR_URL,
@@ -44,6 +44,7 @@ def health():
         "drumgizmo_multimic": drumgizmo_available(),
         "funk_engine_ready": bool(libs.get("funk_kit") and libs.get("funk_808")),
         "hiphop_engine_ready": bool(libs.get("funk_kit") and libs.get("funk_808") and libs.get("hiphop_piano") and libs.get("hiphop_brass") and libs.get("hiphop_strings")),
+        "chillstep_engine_ready": bool(libs.get("chillstep_kit") and libs.get("chillstep_sub") and libs.get("chillstep_pad") and libs.get("chillstep_pluck") and libs.get("chillstep_lead")),
         "libraries": {k: (str(v) if v else None) for k, v in libs.items()},
     }
 
@@ -64,13 +65,14 @@ def _render_reference(req: TestReq) -> dict:
         if missing:
             if genre == "funk":hint = " Rode studio-hq/install_funk_hq.sh."
             elif genre == "hiphop":hint = " Rode studio-hq/install_hiphop_hq.sh."
+            elif genre == "chillstep":hint = " Rode studio-hq/install_chillstep_hq.sh."
             else:hint = ""
             raise RuntimeError(f"Bibliotecas ausentes para {genre}: " + ", ".join(missing) + hint)
 
         midis, bars, form = create_test_midis(work, req.seconds, req.bpm, genre)
         stems = {};render_info = {"drums_engine": "sfz_fallback", "library_fallbacks": {}}
 
-        if genre in ("funk","hiphop"):
+        if genre in ("funk","hiphop","chillstep"):
             for name,midi in midis.items():
                 wav=work/f"{name}_raw.wav";render_sfz(libs[name],midi,wav);stems[name]=wav
             if genre == "funk":
@@ -79,7 +81,7 @@ def _render_reference(req: TestReq) -> dict:
                     "sub_engine":"musiclite_808_sfz",
                     "groove_engine":"funk_carioca_humanized_16th",
                 })
-            else:
+            elif genre == "hiphop":
                 render_info.update({
                     "drums_engine":"hiphop_hq06_halftime_hybrid",
                     "sub_engine":"musiclite_808_sfz",
@@ -87,6 +89,15 @@ def _render_reference(req: TestReq) -> dict:
                     "brass_engine":"vsco2ce_trumpet_staccato",
                     "strings_engine":"vsco2ce_violin_section_sustain",
                     "groove_engine":"american_southern_luxury_hiphop_humanized",
+                })
+            else:
+                render_info.update({
+                    "drums_engine":"chillstep_hq08_halftime_synth",
+                    "sub_engine":"chillstep_hq08_deep_sub",
+                    "pad_engine":"chillstep_hq08_stereo_pad",
+                    "pluck_engine":"chillstep_hq08_pluck_delay",
+                    "lead_engine":"chillstep_hq08_melodic_lead",
+                    "groove_engine":"chillstep_140bpm_grid_locked_microtiming",
                 })
         else:
             try:dg = render_multimic(midis["drums"], work, genre)
@@ -112,14 +123,16 @@ def _render_reference(req: TestReq) -> dict:
 
         if genre=="funk":engine_suffix="hq5-reference";render_mode="hq5_funk_reference"
         elif genre=="hiphop":engine_suffix="hiphop-hq6-reference";render_mode="hq6_american_hiphop_reference"
+        elif genre=="chillstep":engine_suffix="chillstep-hq8-reference";render_mode="hq8_chillstep_reference"
         else:engine_suffix="hq3-reference";render_mode="hq3_reference"
         final = OUTPUT / f"{job}-{genre}-{engine_suffix}.wav";mix_master(stems, final, work, genre)
         credits = []
         if render_info["drums_engine"] == "drumgizmo_multimic":credits.append("Drum samples rendered from DrumGizmo.org kit; see upstream kit license/attribution.")
         if genre == "funk":credits.append("Organic percussion layers from VCSL (CC0); electronic kick/tamborzao/hats/808 generated locally by MusicLite.")
         if genre == "hiphop":credits.append("Piano, brass and string source samples from VSCO 2 CE (CC0); electronic drums/808 use the MusicLite local electronic base.")
+        if genre == "chillstep":credits.append("All chillstep electronic source samples are synthesized locally by MusicLite; no third-party sample redistribution required.")
         manifest = {
-            "job":job,"version":"0.6.0","render_mode":render_mode,"genre":genre,"prompt":req.prompt,"bpm":req.bpm,"bars":bars,
+            "job":job,"version":"0.8.0","render_mode":render_mode,"genre":genre,"prompt":req.prompt,"bpm":req.bpm,"bars":bars,
             "form":serialize_form(form),"final":str(final),"instruments":{k:str(v) for k,v in libs.items()},"stems":{k:str(v) for k,v in stems.items()},"credits":credits,**render_info,
         }
         (work / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -140,7 +153,7 @@ def render_neural(req: NeuralReq):
         result = neuralize_reference(reference["final"],genre=genre,prompt=req.prompt,bpm=req.bpm,seconds=req.seconds,candidates=req.candidates,cover_strength=req.cover_strength,exploration=req.exploration,instrumental=req.instrumental,lyrics=req.lyrics)
         target = OUTPUT / f"{reference['job']}-{genre}-neural07.wav";publish_best(result, target, genre=genre)
         manifest = {
-            "job":reference["job"],"version":"0.6.0","render_mode":"neural_hybrid_hq07","genre":genre,"prompt":req.prompt,"bpm":req.bpm,
+            "job":reference["job"],"version":"0.8.0","render_mode":"neural_hybrid_hq07","genre":genre,"prompt":req.prompt,"bpm":req.bpm,
             "reference_audio":reference["final"],"final":str(target),"neural_backend":result.get("backend"),"neural_selection":result.get("musiclite_selection"),
             "best":result.get("best"),"candidates":result.get("candidates", []),"candidate_failures":result.get("failures", []),"reference":reference
         }
