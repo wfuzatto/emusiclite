@@ -195,8 +195,10 @@ for f in \
   "$KIT/tambor_low.wav" \
   "$KIT/tambor_high.wav" \
   "$SUB/808_C1.wav"; do
-  if [ ! -s "$f" ]; then
-    echo "ERRO: asset ausente: $f"; exit 41
+  if ! sudo -u "$SERVICE_USER" test -s "$f"; then
+    echo "ERRO: asset ausente ou ilegível para $SERVICE_USER: $f"
+    sudo -u "$SERVICE_USER" ls -l "$f" 2>/dev/null || true
+    exit 41
   fi
 done
 
