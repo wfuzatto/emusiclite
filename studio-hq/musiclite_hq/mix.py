@@ -8,7 +8,15 @@ def _prep(src,dst,kind,genre):
     if genre=="rock" and kind in ("guitar_l","guitar_r"):
         process_rock_guitar(src,dst,"left" if kind.endswith("_l") else "right");return
     if genre=="rock" and kind=="bass":process_rock_bass(src,dst);return
-    if genre=="funk" and kind=="drums":
+    if genre=="hiphop":
+        filt={
+            "drums":"highpass=f=24,lowpass=f=19500,equalizer=f=62:t=q:w=.9:g=1.2,equalizer=f=220:t=q:w=1:g=-1.0,equalizer=f=7200:t=q:w=1:g=.8,acompressor=threshold=.18:ratio=2.2:attack=10:release=105:makeup=1.10",
+            "sub":"highpass=f=22,lowpass=f=175,equalizer=f=50:t=q:w=.9:g=1.5,equalizer=f=108:t=q:w=.9:g=-.6,acompressor=threshold=.20:ratio=2.0:attack=18:release=180:makeup=1.08",
+            "piano":"highpass=f=70,lowpass=f=10500,equalizer=f=260:t=q:w=.9:g=-1.4,equalizer=f=2300:t=q:w=.9:g=-.5,acompressor=threshold=.27:ratio=1.35:attack=28:release=220",
+            "brass":"highpass=f=105,lowpass=f=13000,equalizer=f=850:t=q:w=.9:g=-1.0,equalizer=f=3500:t=q:w=.9:g=1.0,acompressor=threshold=.23:ratio=1.45:attack=14:release=170",
+            "strings":"highpass=f=120,lowpass=f=12500,equalizer=f=420:t=q:w=.8:g=-1.2,equalizer=f=5500:t=q:w=1:g=.5,acompressor=threshold=.29:ratio=1.25:attack=45:release=260",
+        }[kind]
+    elif genre=="funk" and kind=="drums":
         filt="highpass=f=25,lowpass=f=19500,equalizer=f=95:t=q:w=1.0:g=1.2,equalizer=f=320:t=q:w=1.1:g=-1.0,equalizer=f=5200:t=q:w=.8:g=.8,acompressor=threshold=.20:ratio=2.2:attack=8:release=90:makeup=1.12"
     elif genre=="funk" and kind=="sub":
         filt="highpass=f=21,lowpass=f=230,equalizer=f=52:t=q:w=.75:g=1.6,equalizer=f=115:t=q:w=.9:g=-.7,acompressor=threshold=.18:ratio=2.4:attack=16:release=130:makeup=1.08"
@@ -36,8 +44,9 @@ def mix_master(stems,out:Path,work:Path,genre="sertanejo"):
     if genre=="rock":
         volumes={"drums":.92,"bass":.82,"guitar_l":.72,"guitar_r":.72};room_names=[n for n in ("guitar_l","guitar_r") if n in prepared];room_amount=.075;target="-13.5";lra="9";limit=.91
     elif genre=="funk":
-        # Club-oriented but still leaves true-peak headroom. Keep sub mono from source SFZ.
         volumes={"drums":.96,"sub":.92};room_names=[];room_amount=0;target="-11.5";lra="7";limit=.94
+    elif genre=="hiphop":
+        volumes={"drums":.96,"sub":.94,"piano":.52,"brass":.56,"strings":.36};room_names=[n for n in ("piano","brass","strings") if n in prepared];room_amount=.085;target="-11.0";lra="7";limit=.94
     else:
         volumes={"drums":.88,"bass":.82,"guitar":.84,"piano":.42,"accordion":.48};room_names=[n for n in ("guitar","piano","accordion") if n in prepared];room_amount=.105;target="-14";lra="10";limit=.91
     dry=work/"dry_mix.wav";_mix_inputs(prepared,volumes,dry,limit=limit)
@@ -48,6 +57,8 @@ def mix_master(stems,out:Path,work:Path,genre="sertanejo"):
     else:pre=dry
     if genre=="funk":
         master=f"highpass=f=20,equalizer=f=42:t=q:w=.8:g=.7,acompressor=threshold=.30:ratio=1.22:attack=24:release=150,alimiter=limit=.95,loudnorm=I={target}:TP=-0.8:LRA={lra}"
+    elif genre=="hiphop":
+        master=f"highpass=f=20,equalizer=f=48:t=q:w=.8:g=.5,equalizer=f=260:t=q:w=1:g=-.35,acompressor=threshold=.30:ratio=1.20:attack=30:release=190,alimiter=limit=.95,loudnorm=I={target}:TP=-0.8:LRA={lra}"
     else:
         master=f"highpass=f=23,acompressor=threshold=.34:ratio=1.16:attack=38:release=250,loudnorm=I={target}:TP=-1.0:LRA={lra}"
     _run(["ffmpeg","-y","-loglevel","error","-i",str(pre),"-af",master,"-ar","48000","-c:a","pcm_s24le",str(out)])
