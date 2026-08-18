@@ -31,11 +31,24 @@ def all_instruments():
         "hiphop_piano": _find(SAMPLES/"hiphop"/"piano", ("hiphop","upright","piano")),
         "hiphop_brass": _find(SAMPLES/"hiphop"/"brass", ("hiphop","brass","trumpet")),
         "hiphop_strings": _find(SAMPLES/"hiphop"/"strings", ("hiphop","strings","violin")),
+        "chillstep_kit": _find(SAMPLES/"chillstep"/"kit", ("chillstep","kit")),
+        "chillstep_sub": _find(SAMPLES/"chillstep"/"sub", ("chillstep","sub")),
+        "chillstep_pad": _find(SAMPLES/"chillstep"/"pad", ("chillstep","pad")),
+        "chillstep_pluck": _find(SAMPLES/"chillstep"/"pluck", ("chillstep","pluck")),
+        "chillstep_lead": _find(SAMPLES/"chillstep"/"lead", ("chillstep","lead")),
     }
 
 def instruments(genre="sertanejo"):
     genre = normalize_genre(genre)
     lib = all_instruments()
+    if genre == "chillstep":
+        return {
+            "drums": lib["chillstep_kit"],
+            "sub": lib["chillstep_sub"],
+            "pad": lib["chillstep_pad"],
+            "pluck": lib["chillstep_pluck"],
+            "lead": lib["chillstep_lead"],
+        }
     if genre == "hiphop":
         return {
             "drums": lib["funk_kit"],
@@ -60,7 +73,7 @@ def instruments(genre="sertanejo"):
 def fallback_instrument(name: str, genre="sertanejo"):
     genre = normalize_genre(genre)
     lib = all_instruments()
-    if genre in ("funk","hiphop"):
+    if genre in ("funk","hiphop","chillstep"):
         return lib["piano"] if genre=="hiphop" and name=="piano" else None
     if name == "bass":
         return lib["bass_fallback"]
