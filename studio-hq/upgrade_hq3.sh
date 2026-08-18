@@ -62,7 +62,11 @@ gdrive_pack () {
   id="$1"; target="$2"; marker="$3"; label="$4"
   if target_has "$target" "$marker"; then echo "Já instalado: $target"; return; fi
   pack="$STAGE/${label}.pack"; extracted="$STAGE/${label}"
-  "$TOOLS_VENV/bin/gdown" --fuzzy "https://drive.google.com/uc?id=$id" -O "$pack"
+  if ! "$TOOLS_VENV/bin/gdown" "$id" -O "$pack"; then
+    echo "Download por ID falhou; tentando URL direta do Google Drive..."
+    "$TOOLS_VENV/bin/gdown" "https://drive.google.com/uc?id=$id" -O "$pack"
+  fi
+  test -s "$pack"
   extract_auto "$pack" "$extracted"; install_tree "$extracted" "$target"
 }
 
