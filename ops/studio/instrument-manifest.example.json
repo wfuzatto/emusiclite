@@ -1,0 +1,42 @@
+{
+  "sample_root": "/var/lib/musiclite/studio-samples",
+  "instruments": {
+    "steel_guitar": {
+      "engine": "fluidsynth",
+      "file": "steel-guitar.sf2",
+      "gain": 0.78,
+      "role": "acoustic_guitar"
+    },
+    "clean_guitar": {
+      "engine": "fluidsynth",
+      "file": "clean-electric-guitar.sf2",
+      "gain": 0.62,
+      "role": "clean_guitar"
+    },
+    "electric_bass": {
+      "engine": "fluidsynth",
+      "file": "finger-bass.sf2",
+      "gain": 0.82,
+      "role": "bass"
+    },
+    "acoustic_drums": {
+      "engine": "fluidsynth",
+      "file": "acoustic-drums.sf2",
+      "gain": 0.9,
+      "role": "drums",
+      "midi_channel": 9
+    },
+    "accordion": {
+      "engine": "sfizz",
+      "file": "accordion.sfz",
+      "gain": 0.58,
+      "role": "accordion"
+    },
+    "upright_piano": {
+      "engine": "fluidsynth",
+      "file": "upright-piano.sf2",
+      "gain": 0.58,
+      "role": "piano"
+    }
+  }
+}
