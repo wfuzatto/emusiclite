@@ -6,6 +6,7 @@ APP="/opt/musiclite/studio-hq"
 GEN_API="/opt/musiclite/api"
 GEN_APP="/opt/musiclite/generator"
 ENV_FILE="/etc/musiclite/worker.env"
+NEURAL_ENV="/etc/musiclite/neural.env"
 SERVICE_USER="${MUSICLITE_HQ_USER:-musiclite}"
 SERVICE_GROUP="${MUSICLITE_HQ_GROUP:-musiclite}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,6 +43,14 @@ ensure_env MUSIC_AI_NEURAL_SOURCE_ROOTS "/var/lib/musiclite/studio-hq/output:/va
 ensure_env MUSICLITE_NEURAL_GENERATOR_URL "http://127.0.0.1:8091"
 ensure_env MUSICLITE_NEURAL_TIMEOUT 5400
 
+# Give the HQ process only the credentials it needs; do not load DB secrets.
+GEN_TOKEN=$(sudo awk -F= '$1=="MUSIC_AI_GENERATOR_TOKEN"{sub(/^MUSIC_AI_GENERATOR_TOKEN=/,""); print; exit}' "$ENV_FILE")
+sudo install -o root -g "$SERVICE_GROUP" -m 0640 /dev/null "$NEURAL_ENV"
+printf 'MUSIC_AI_GENERATOR_TOKEN=%s\nMUSICLITE_NEURAL_GENERATOR_URL=http://127.0.0.1:8091\nMUSICLITE_NEURAL_TIMEOUT=5400\n' "$GEN_TOKEN" | sudo tee "$NEURAL_ENV" >/dev/null
+sudo chown root:"$SERVICE_GROUP" "$NEURAL_ENV"
+sudo chmod 0640 "$NEURAL_ENV"
+unset GEN_TOKEN
+
 sudo install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 \
   /var/lib/musiclite/neural-studio "$BASE/output" "$BASE/work"
 sudo install -d -o root -g root -m 0755 "$GEN_API" "$GEN_APP" "$APP"
@@ -71,11 +80,11 @@ if [ -x "$APP/venv/bin/pip" ]; then
   sudo "$APP/venv/bin/pip" install -q -r "$APP/requirements.txt"
 fi
 
-echo "== systemd: expose only the existing worker.env to HQ =="
+echo "== systemd: dedicated neural.env for HQ =="
 sudo install -d -m 0755 /etc/systemd/system/musiclite-studio-hq.service.d
 sudo tee /etc/systemd/system/musiclite-studio-hq.service.d/neural-studio.conf >/dev/null <<'EOF'
 [Service]
-EnvironmentFile=-/etc/musiclite/worker.env
+EnvironmentFile=-/etc/musiclite/neural.env
 Environment=MUSICLITE_NEURAL_GENERATOR_URL=http://127.0.0.1:8091
 Environment=MUSICLITE_NEURAL_TIMEOUT=5400
 EOF
