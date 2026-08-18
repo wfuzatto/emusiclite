@@ -1,0 +1,23 @@
+[Unit]
+Description=MusicLite Studio Real MIDI/Sample Renderer
+After=network.target
+
+[Service]
+Type=simple
+User=musiclite
+Group=musiclite
+EnvironmentFile=/etc/musiclite/worker.env
+WorkingDirectory=/opt/musiclite
+ExecStart=/opt/musiclite/studio-venv/bin/python /opt/musiclite/api/musiclite_studio_api.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/musiclite /var/log/musiclite
+ReadOnlyPaths=/opt/musiclite /etc/musiclite
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
