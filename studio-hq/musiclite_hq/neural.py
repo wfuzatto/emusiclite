@@ -8,6 +8,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+import soundfile as sf
+
 from .config import NEURAL_GENERATOR_TOKEN, NEURAL_GENERATOR_URL, NEURAL_TIMEOUT, OUTPUT
 
 
@@ -69,13 +71,15 @@ def neuralize_reference(
     lyrics: str | None = None,
 ) -> dict[str, Any]:
     reference = Path(reference).resolve()
+    info = sf.info(str(reference))
+    measured_duration = round(float(info.frames) / float(info.samplerate), 3)
     payload = {
         "source_audio": str(reference),
         "caption": build_production_caption(genre, prompt),
         "instrumental": instrumental,
         "lyrics": lyrics or "",
         "bpm": round(float(bpm)),
-        "duration": float(seconds),
+        "duration": measured_duration,
         "candidate_count": int(candidates),
         "cover_strength": float(cover_strength),
         "exploration": bool(exploration),
