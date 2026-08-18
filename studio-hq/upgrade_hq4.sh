@@ -5,6 +5,7 @@ BASE="/var/lib/musiclite/studio-hq"
 APP="/opt/musiclite/studio-hq"
 GEN_API="/opt/musiclite/api"
 GEN_APP="/opt/musiclite/generator"
+GEN_PY="/opt/musiclite/venv/bin/python"
 ENV_FILE="/etc/musiclite/worker.env"
 NEURAL_ENV="/etc/musiclite/neural.env"
 SERVICE_USER="${MUSICLITE_HQ_USER:-musiclite}"
@@ -21,6 +22,12 @@ test -f "$SCRIPT_DIR/musiclite_hq/neural.py"
 if ! sudo test -f "$ENV_FILE"; then
   echo "ERRO: $ENV_FILE não existe. O token do gerador é obrigatório."
   exit 20
+fi
+
+if ! sudo test -x "$GEN_PY"; then
+  echo "ERRO: Python do gerador não encontrado em $GEN_PY."
+  echo "O serviço musiclite-generator precisa estar instalado antes do Neural Studio 0.4."
+  exit 22
 fi
 
 TOKEN_LEN=$(sudo awk -F= '$1=="MUSIC_AI_GENERATOR_TOKEN"{sub(/^MUSIC_AI_GENERATOR_TOKEN=/,""); print length($0); exit}' "$ENV_FILE")
@@ -56,9 +63,21 @@ sudo install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 \
 sudo install -d -o root -g root -m 0755 "$GEN_API" "$GEN_APP" "$APP"
 
 echo "== Generator Python dependencies =="
-if ! /opt/musiclite/venv/bin/python -c 'import numpy, soundfile' >/dev/null 2>&1; then
-  sudo /opt/musiclite/venv/bin/pip install -q numpy soundfile
+# Some existing MusicLite venvs have Python/ensurepip but no standalone bin/pip.
+# Always invoke pip as a Python module and bootstrap it if necessary.
+if ! sudo "$GEN_PY" -m pip --version >/dev/null 2>&1; then
+  echo "pip ausente no venv do gerador; executando ensurepip..."
+  if ! sudo "$GEN_PY" -m ensurepip --upgrade; then
+    echo "ensurepip indisponível; instalando suporte venv/pip do Ubuntu..."
+    sudo apt-get update
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-pip
+    sudo "$GEN_PY" -m ensurepip --upgrade
+  fi
 fi
+if ! sudo "$GEN_PY" -c 'import numpy, soundfile' >/dev/null 2>&1; then
+  sudo "$GEN_PY" -m pip install -q numpy soundfile
+fi
+sudo "$GEN_PY" -c 'import numpy, soundfile; print("generator deps: OK")'
 
 echo "== Deploy generator neural adapter =="
 sudo install -o root -g root -m 0644 \
@@ -76,8 +95,12 @@ sudo chmod -R a+rX "$APP"
 sudo chown -R "$SERVICE_USER":"$SERVICE_GROUP" "$BASE" /var/lib/musiclite/neural-studio
 sudo chmod -R u+rwX,go-rwx "$BASE" /var/lib/musiclite/neural-studio
 
-if [ -x "$APP/venv/bin/pip" ]; then
-  sudo "$APP/venv/bin/pip" install -q -r "$APP/requirements.txt"
+HQ_PY="$APP/venv/bin/python"
+if sudo test -x "$HQ_PY"; then
+  if ! sudo "$HQ_PY" -m pip --version >/dev/null 2>&1; then
+    sudo "$HQ_PY" -m ensurepip --upgrade
+  fi
+  sudo "$HQ_PY" -m pip install -q -r "$APP/requirements.txt"
 fi
 
 echo "== systemd: dedicated neural.env for HQ =="
