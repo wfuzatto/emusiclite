@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STAGE="$(mktemp -d /tmp/musiclite-hq3.XXXXXX)"
 trap 'rm -rf "$STAGE"' EXIT
 
-echo "== MusicLite Studio HQ 0.3 / REALISM UPGRADE =="
+echo "== MusicLite Studio HQ 0.3 / REALISM ASSET UPGRADE =="
 FREE_GB=$(df -Pk /var/lib/musiclite 2>/dev/null | awk 'NR==2 {printf "%.0f",$4/1024/1024}')
 if [ -z "${FREE_GB:-}" ]; then FREE_GB=$(df -Pk / | awk 'NR==2 {printf "%.0f",$4/1024/1024}'); fi
 echo "Espaço livre: ${FREE_GB} GB"
@@ -41,7 +41,7 @@ drumgizmo --version || drumgizmo -v
 
 TOOLS_VENV="$STAGE/tools-venv"
 python3 -m venv "$TOOLS_VENV"
-"$TOOLS_VENV/bin/pip" -q install --upgrade pip gdown
+"$TOOLS_VENV/bin/python" -m pip -q install --upgrade pip gdown
 
 extract_auto () {
   arc="$1"; dst="$2"; mkdir -p "$dst"; mime=$(file -b --mime-type "$arc" || true)
@@ -89,7 +89,7 @@ if ! sudo -u "$SERVICE_USER" find "$IRS/Voxengo" -type f -iname '*Direct*Cabinet
   mkdir -p "$STAGE/Voxengo"; unzip -q -o "$zip" -d "$STAGE/Voxengo"; install_tree "$STAGE/Voxengo" "$IRS/Voxengo"
 fi
 
-echo "== Deploy HQ3 code =="
+echo "== Deploy current HQ code =="
 sudo rsync -a --delete "$SCRIPT_DIR/musiclite_hq/" "$APP/musiclite_hq/"
 sudo cp "$SCRIPT_DIR/requirements.txt" "$APP/requirements.txt"
 sudo chmod -R a+rX "$APP"
@@ -106,19 +106,19 @@ sudo -u "$SERVICE_USER" find "$SAMPLES/guitar/MetalGTX" "$SAMPLES/guitar/Standar
 sudo du -sh "$SAMPLES/guitar/MetalGTX" "$SAMPLES/guitar/StandardGuitar" "$SAMPLES/bass/StandardBass" "$DRUMKITS/CrocellKit" "$DRUMKITS/DRSKit" "$IRS/Voxengo" 2>/dev/null || true
 
 if [ "${MUSICLITE_HQ3_SKIP_SMOKE:-0}" != "1" ]; then
-  echo "== Smoke test HQ3: rock 20s =="
+  echo "== Smoke test HQ assets: rock 20s =="
   SMOKE_JSON="$STAGE/hq3-smoke.json"
   curl -fsS -X POST http://127.0.0.1:8094/render/test -H 'Content-Type: application/json' -d '{"seconds":20,"bpm":132,"genre":"rock","prompt":"rock de estúdio, bateria acústica real, guitarras humanas"}' > "$SMOKE_JSON"
   python3 - "$SMOKE_JSON" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8"))
 print(json.dumps({"version":d.get("version"),"drums_engine":d.get("drums_engine"),"library_fallbacks":d.get("library_fallbacks"),"drumgizmo_error":d.get("drumgizmo_error"),"final":d.get("final")},indent=2,ensure_ascii=False))
-if d.get("version")!="0.3.0":raise SystemExit("HQ3 smoke falhou: versão inesperada")
-if not d.get("final"):raise SystemExit("HQ3 smoke falhou: WAV final ausente")
+if d.get("version") not in {"0.3.0","0.4.0"}:raise SystemExit("Smoke falhou: versão inesperada")
+if not d.get("final"):raise SystemExit("Smoke falhou: WAV final ausente")
 PY
 fi
 
 echo
-echo "HQ3 instalado."
+echo "HQ realism assets instalados."
 echo "Teste rock máximo:"
 echo "curl -sS -X POST http://127.0.0.1:8094/render/test -H 'Content-Type: application/json' -d '{\"seconds\":90,\"bpm\":132,\"genre\":\"rock\",\"prompt\":\"rock brasileiro de estúdio, bateria acústica real, guitarras grandes e humanas\"}' | python3 -m json.tool"

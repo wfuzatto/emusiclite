@@ -64,20 +64,22 @@ sudo install -d -o root -g root -m 0755 "$GEN_API" "$GEN_APP" "$APP"
 
 echo "== Generator Python dependencies =="
 # Some existing MusicLite venvs have Python/ensurepip but no standalone bin/pip.
-# Always invoke pip as a Python module and bootstrap it if necessary.
+# Bootstrap pip without upgrading unrelated packages, then enforce ACE-Step's
+# setuptools compatibility boundary (<72).
 if ! sudo "$GEN_PY" -m pip --version >/dev/null 2>&1; then
   echo "pip ausente no venv do gerador; executando ensurepip..."
-  if ! sudo "$GEN_PY" -m ensurepip --upgrade; then
+  if ! sudo "$GEN_PY" -m ensurepip; then
     echo "ensurepip indisponível; instalando suporte venv/pip do Ubuntu..."
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-pip
-    sudo "$GEN_PY" -m ensurepip --upgrade
+    sudo "$GEN_PY" -m ensurepip
   fi
 fi
+sudo "$GEN_PY" -m pip install -q 'setuptools<72'
 if ! sudo "$GEN_PY" -c 'import numpy, soundfile' >/dev/null 2>&1; then
   sudo "$GEN_PY" -m pip install -q numpy soundfile
 fi
-sudo "$GEN_PY" -c 'import numpy, soundfile; print("generator deps: OK")'
+sudo "$GEN_PY" -c 'import numpy, soundfile, setuptools; print("generator deps: OK; setuptools=" + setuptools.__version__)'
 
 echo "== Deploy generator neural adapter =="
 sudo install -o root -g root -m 0644 \
@@ -98,7 +100,7 @@ sudo chmod -R u+rwX,go-rwx "$BASE" /var/lib/musiclite/neural-studio
 HQ_PY="$APP/venv/bin/python"
 if sudo test -x "$HQ_PY"; then
   if ! sudo "$HQ_PY" -m pip --version >/dev/null 2>&1; then
-    sudo "$HQ_PY" -m ensurepip --upgrade
+    sudo "$HQ_PY" -m ensurepip
   fi
   sudo "$HQ_PY" -m pip install -q -r "$APP/requirements.txt"
 fi
