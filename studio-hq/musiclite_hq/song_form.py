@@ -7,15 +7,12 @@ class Section:
     start: int
     bars: int
     intensity: float
-
     @property
-    def end(self) -> int:
-        return self.start + self.bars
+    def end(self) -> int:return self.start + self.bars
 
 def _add(out: List[Section], name: str, bars: int, intensity: float):
     bars=max(0,int(bars))
-    if bars:
-        out.append(Section(name,sum(x.bars for x in out),bars,intensity))
+    if bars:out.append(Section(name,sum(x.bars for x in out),bars,intensity))
 
 def _fit_plan(total_bars, plan):
     out=[];remaining=total_bars
@@ -27,10 +24,8 @@ def _fit_plan(total_bars, plan):
 
 def _funk_form(total_bars: int) -> List[Section]:
     total_bars=max(4,int(total_bars))
-    if total_bars <= 12:
-        plan=[("intro",1,.45),("verse",2,.64),("build",2,.78),("drop",3,1.0),("break",1,.56),("final_drop",2,1.0),("outro",1,.42)]
-    elif total_bars <= 28:
-        plan=[("intro",2,.45),("verse",4,.64),("build",2,.80),("drop",6,1.0),("break",2,.55),("verse2",3,.69),("final_drop",6,1.0),("outro",2,.42)]
+    if total_bars <= 12:plan=[("intro",1,.45),("verse",2,.64),("build",2,.78),("drop",3,1.0),("break",1,.56),("final_drop",2,1.0),("outro",1,.42)]
+    elif total_bars <= 28:plan=[("intro",2,.45),("verse",4,.64),("build",2,.80),("drop",6,1.0),("break",2,.55),("verse2",3,.69),("final_drop",6,1.0),("outro",2,.42)]
     else:
         fixed=[("intro",3,.44),("verse",6,.63),("build",3,.80),("drop",8,1.0),("break",3,.54),("verse2",6,.69),("build2",3,.84),("final_drop",8,1.0),("outro",2,.40)]
         extra=total_bars-sum(x[1] for x in fixed);plan=[]
@@ -45,9 +40,19 @@ def _hiphop_form(total_bars: int) -> List[Section]:
     if total_bars <= 16:
         plan=[("intro",2,.42),("verse",4,.62),("hook",4,.96),("breakdown",2,.54),("final_hook",3,1.0),("outro",1,.38)]
     elif total_bars <= 28:
-        plan=[("intro",2,.42),("verse",6,.62),("hook",4,.96),("verse2",5,.67),("hook2",4,.98),("breakdown",2,.54),("final_hook",4,1.0),("outro",1,.38)]
+        plan=[("intro",2,.42),("verse",5,.62),("hook",4,.96),("verse2",5,.67),("hook2",4,.98),("breakdown",2,.54),("final_hook",4,1.0),("outro",2,.38)]
+    elif total_bars <= 36:
+        base=[["intro",2,.42],["verse",6,.61],["hook",4,.96],["verse2",6,.68],["hook2",4,.98],["breakdown",2,.53],["final_hook",6,1.0],["outro",2,.37]]
+        extra=max(0,total_bars-32)
+        for idx,cap in ((1,8),(3,8)):
+            add=min(extra,cap-base[idx][1]);base[idx][1]+=add;extra-=add
+        plan=[tuple(x) for x in base]
     elif total_bars <= 44:
-        plan=[("intro",4,.42),("verse",8,.61),("hook",6,.96),("verse2",8,.68),("hook2",6,.98),("breakdown",3,.53),("final_hook",6,1.0),("outro",3,.37)]
+        base=[["intro",3,.42],["verse",7,.61],["hook",5,.96],["verse2",7,.68],["hook2",5,.98],["breakdown",3,.53],["final_hook",7,1.0],["outro",3,.37]]
+        extra=max(0,total_bars-40)
+        for idx,cap in ((1,9),(3,9)):
+            add=min(extra,cap-base[idx][1]);base[idx][1]+=add;extra-=add
+        plan=[tuple(x) for x in base]
     else:
         fixed=[("intro",4,.42),("verse",10,.61),("hook",8,.96),("verse2",10,.68),("hook2",8,.98),("breakdown",4,.53),("final_hook",8,1.0),("outro",4,.37)]
         extra=total_bars-sum(x[1] for x in fixed);plan=[]
@@ -62,37 +67,28 @@ def make_form(total_bars: int, genre: str) -> List[Section]:
     if genre == "funk":return _funk_form(total_bars)
     if genre == "hiphop":return _hiphop_form(total_bars)
     out: List[Section]=[]
-
     if total_bars <= 16:
-        plan=[("intro",2,.48),("verse",4,.62),("chorus",4,.92),("bridge",2,.70),("final_chorus",3,1.0),("outro",1,.48)]
-        remaining=total_bars
+        plan=[("intro",2,.48),("verse",4,.62),("chorus",4,.92),("bridge",2,.70),("final_chorus",3,1.0),("outro",1,.48)];remaining=total_bars
         for idx,(name,bars,intensity) in enumerate(plan):
-            later_min=1 if idx < len(plan)-1 else 0
-            use=min(bars,max(0,remaining-later_min));_add(out,name,use,intensity);remaining-=use
+            later_min=1 if idx < len(plan)-1 else 0;use=min(bars,max(0,remaining-later_min));_add(out,name,use,intensity);remaining-=use
         if remaining:_add(out,"outro",remaining,.45)
         return out
-
     if total_bars <= 24:
-        base=[["intro",2,.48],["verse",4,.62],["chorus",4,.94],["bridge",2,.72],["final_chorus",4,1.0],["outro",1,.45]]
-        extra=total_bars-sum(x[1] for x in base)
+        base=[["intro",2,.48],["verse",4,.62],["chorus",4,.94],["bridge",2,.72],["final_chorus",4,1.0],["outro",1,.45]];extra=total_bars-sum(x[1] for x in base)
         for idx,cap in ((1,6),(2,6),(4,6),(5,2)):
             add=min(max(0,extra),cap-base[idx][1]);base[idx][1]+=add;extra-=add
         if extra:base.insert(2,["pre",extra,.75])
         for name,bars,intensity in base:_add(out,name,bars,intensity)
         return out
-
     if total_bars <= 40:
-        base=[["intro",3,.48],["verse",6,.62],["pre",2,.75],["chorus",6,.94],["bridge",2,.72],["final_chorus",5,1.0],["outro",1,.45]]
-        extra=total_bars-sum(x[1] for x in base)
+        base=[["intro",3,.48],["verse",6,.62],["pre",2,.75],["chorus",6,.94],["bridge",2,.72],["final_chorus",5,1.0],["outro",1,.45]];extra=total_bars-sum(x[1] for x in base)
         for idx,cap in ((1,8),(2,4),(3,8),(4,4),(5,8),(6,2)):
             add=min(max(0,extra),cap-base[idx][1]);base[idx][1]+=add;extra-=add
         for name,bars,intensity in base[:-2]:_add(out,name,bars,intensity)
         if extra:_add(out,"solo",extra,.80 if genre=="rock" else .76)
         for name,bars,intensity in base[-2:]:_add(out,name,bars,intensity)
         return out
-
-    extra=total_bars-40
-    _add(out,"intro",4,.46);_add(out,"verse",8,.60);_add(out,"pre",4,.74);_add(out,"chorus",8,.93)
+    extra=total_bars-40;_add(out,"intro",4,.46);_add(out,"verse",8,.60);_add(out,"pre",4,.74);_add(out,"chorus",8,.93)
     use=min(8,extra)
     if use:_add(out,"verse2",use,.66);extra-=use
     use=min(4,extra)
@@ -100,17 +96,13 @@ def make_form(total_bars: int, genre: str) -> List[Section]:
     use=min(8,extra)
     if use:_add(out,"chorus2",use,.96);extra-=use
     if extra:_add(out,"solo",extra,.82 if genre=="rock" else .78)
-    _add(out,"bridge",4,.72);_add(out,"final_chorus",8,1.0);_add(out,"outro",4,.43)
-    return out
+    _add(out,"bridge",4,.72);_add(out,"final_chorus",8,1.0);_add(out,"outro",4,.43);return out
 
 def section_for_bar(form: List[Section], bar: int) -> Section:
     for section in form:
         if section.start <= bar < section.end:return section
     return form[-1]
-
 def section_progress(section: Section, bar: int) -> float:
     if section.bars <= 1:return 1.0
     return (bar-section.start)/max(1,section.bars-1)
-
-def serialize_form(form):
-    return [{"name":s.name,"start_bar":s.start,"bars":s.bars,"intensity":s.intensity} for s in form]
+def serialize_form(form):return [{"name":s.name,"start_bar":s.start,"bars":s.bars,"intensity":s.intensity} for s in form]
