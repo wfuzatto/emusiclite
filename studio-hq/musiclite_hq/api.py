@@ -37,7 +37,7 @@ def health():
         "ok": True,
         "version": "0.6.0",
         "hq_reference_engine": "0.6",
-        "neural_engine": "ace-step-1.5-cover",
+        "neural_engine": "ace-step-1.5-cover-hq07",
         "neural_configured": len(NEURAL_GENERATOR_TOKEN) >= 32,
         "neural_generator_url": NEURAL_GENERATOR_URL,
         "supported_genres": list(genre_info().keys()),
@@ -138,8 +138,12 @@ def render_neural(req: NeuralReq):
     genre = reference["genre"];work = WORK / reference["job"]
     try:
         result = neuralize_reference(reference["final"],genre=genre,prompt=req.prompt,bpm=req.bpm,seconds=req.seconds,candidates=req.candidates,cover_strength=req.cover_strength,exploration=req.exploration,instrumental=req.instrumental,lyrics=req.lyrics)
-        target = OUTPUT / f"{reference['job']}-{genre}-neural04.wav";publish_best(result, target)
-        manifest = {"job":reference["job"],"version":"0.6.0","render_mode":"neural_hybrid","genre":genre,"prompt":req.prompt,"bpm":req.bpm,"reference_audio":reference["final"],"final":str(target),"neural_backend":result.get("backend"),"best":result.get("best"),"candidates":result.get("candidates", []),"candidate_failures":result.get("failures", []),"reference":reference}
+        target = OUTPUT / f"{reference['job']}-{genre}-neural07.wav";publish_best(result, target, genre=genre)
+        manifest = {
+            "job":reference["job"],"version":"0.6.0","render_mode":"neural_hybrid_hq07","genre":genre,"prompt":req.prompt,"bpm":req.bpm,
+            "reference_audio":reference["final"],"final":str(target),"neural_backend":result.get("backend"),"neural_selection":result.get("musiclite_selection"),
+            "best":result.get("best"),"candidates":result.get("candidates", []),"candidate_failures":result.get("failures", []),"reference":reference
+        }
         (work / "neural-manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8");return manifest
     except Exception as exc:
         (work / "NEURAL_ERROR.txt").write_text(traceback.format_exc(), encoding="utf-8")
