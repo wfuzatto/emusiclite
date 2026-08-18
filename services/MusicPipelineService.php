@@ -54,11 +54,12 @@ class MusicPipelineService
             } else {
                 $this->stage($job, 'Aguardando recursos para gerar áudio', 35); $lyrics = $this->loadLyrics($trackId);
                 $spec = ['prompt'=>$plan['audio_prompt'],'lyrics'=>$lyrics['lyrics_text'],'instrumental'=>$track['composition_type']==='INSTRUMENTAL','duration_seconds'=>(int)$track['desired_duration_seconds'],'genre'=>$track['genre'],'subgenre'=>$track['subgenre'],'mood'=>$track['mood'],'theme'=>$track['theme'],'language'=>$track['language'],'bpm'=>$track['bpm'],'key'=>$plan['key'],'voice_type'=>$track['voice_type'],'instruments'=>$plan['instruments'],'structure'=>$plan['structure'],'descriptive_references'=>$track['descriptive_references'],'generation_model'=>$generationModel];
-                $this->stage($job, 'Gerando áudio', 45);
-                $requiresGpu = $generationModel !== 'stable_audio';
-                $result = $this->withHeartbeat($job, 'Gerando áudio', fn() => (new ResourceGuard($this->db, $this->config))->withHeavySlot(false, fn() => MusicGenerationFactory::create($this->config)->generate($spec, $audioPath), $requiresGpu));
+                $audioStage = $generationModel === 'studio_midi' ? 'Renderizando instrumentos reais' : 'Gerando áudio';
+                $this->stage($job, $audioStage, 45);
+                $requiresGpu = !in_array($generationModel, ['stable_audio','studio_midi'], true);
+                $result = $this->withHeartbeat($job, $audioStage, fn() => (new ResourceGuard($this->db, $this->config))->withHeavySlot(false, fn() => MusicGenerationFactory::create($this->config)->generate($spec, $audioPath), $requiresGpu));
                 $state = array_merge($state, ['audio_path'=>$audioPath,'audio_backend'=>$result,'generation_model'=>$generationModel]);
-                $this->tracks->markCheckpoint($trackId, 'audio_generated_at', 'Áudio gerado', 60, $state);
+                $this->tracks->markCheckpoint($trackId, 'audio_generated_at', $generationModel === 'studio_midi' ? 'Instrumentos renderizados' : 'Áudio gerado', 60, $state);
             }
             $track = $this->loadTrack($trackId);
         }
@@ -69,7 +70,11 @@ class MusicPipelineService
         $coverPath=(string)($state['cover_path']??($dir.'/cover.png'));
         if (!$track['cover_generated_at'] || !is_file($coverPath)) {
             if (!$track['cover_generated_at'] && is_file($coverPath) && @getimagesize($coverPath)) { $size=getimagesize($coverPath);$state=array_merge($state,['cover_path'=>$coverPath,'cover_validation'=>['width'=>$size[0],'height'=>$size[1],'sha256'=>hash_file('sha256',$coverPath)],'recovered_existing_cover'=>true]);$this->tracks->markCheckpoint($trackId,'cover_generated_at','Capa gerada recuperada',88,$state); }
-            else { $this->stage($job,'Aguardando recursos para gerar capa',80);$this->stage($job,'Gerando capa',83);$cover=$this->withHeartbeat($job,'Gerando capa',fn()=>(new ResourceGuard($this->db,$this->config))->withHeavySlot(true,fn()=>(new ComfyCoverService($this->config))->generate((string)$plan['cover_prompt'],$coverPath)));$state=array_merge($state,['cover_path'=>$coverPath,'cover_validation'=>$cover]);$this->tracks->markCheckpoint($trackId,'cover_generated_at','Capa gerada',88,$state); }
+            else {
+                $this->stage($job,'Aguardando GPU/ComfyUI para gerar capa',80);
+                $cover=$this->withHeartbeat($job,'Aguardando GPU/ComfyUI para gerar capa',fn()=>(new ResourceGuard($this->db,$this->config))->withHeavySlot(true,function() use ($job,$plan,$coverPath){$this->stage($job,'Gerando capa',83);return (new ComfyCoverService($this->config))->generate((string)$plan['cover_prompt'],$coverPath);}));
+                $state=array_merge($state,['cover_path'=>$coverPath,'cover_validation'=>$cover]);$this->tracks->markCheckpoint($trackId,'cover_generated_at','Capa gerada',88,$state);
+            }
             $track=$this->loadTrack($trackId);
         }
         if (!$track['cover_uploaded_at'] || !$track['cover_media_id']) { $this->stage($job,'Enviando capa',90);$mediaId=(new IngestClient($this->config))->upload('COVER',$trackId,(int)$track['owner_user_id'],$coverPath,$state['cover_validation']??[]);$stmt=$this->db->prepare('UPDATE music_ai_tracks SET cover_media_id=? WHERE id=?');$stmt->bind_param('ii',$mediaId,$trackId);$stmt->execute();$stmt->close();$this->tracks->markCheckpoint($trackId,'cover_uploaded_at','Capa armazenada',94,$state);$track=$this->loadTrack($trackId); }
