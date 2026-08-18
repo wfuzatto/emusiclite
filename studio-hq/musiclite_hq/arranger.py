@@ -3,15 +3,26 @@ from .midi_tools import write_midi, make_tempo_map
 from .genres import normalize_genre
 from .song_form import make_form
 from .drumgizmo import note_map
-from .musicians import hq3, funk, hiphop
+from .musicians import hq3, funk, hiphop, chillstep
 
 def create_test_midis(work: Path, seconds=60, bpm=126, genre="sertanejo"):
     genre=normalize_genre(genre)
     bars=max(4, round(seconds / ((60/bpm)*4)))
     form=make_form(bars,genre)
-    tempo=make_tempo_map(bpm,bars,form=form)
+    # Electronic chillstep should stay locked to the grid. Human feel is added
+    # at note level, not by drifting the global tempo.
+    tempo=[(0,bpm)] if genre=="chillstep" else make_tempo_map(bpm,bars,form=form)
 
-    if genre=="hiphop":
+    if genre=="chillstep":
+        drums={}
+        specs={
+            "drums": chillstep.chillstep_drums,
+            "sub": chillstep.chillstep_sub,
+            "pad": chillstep.chillstep_pad,
+            "pluck": chillstep.chillstep_pluck,
+            "lead": chillstep.chillstep_lead,
+        }
+    elif genre=="hiphop":
         drums={}
         specs={
             "drums": hiphop.hiphop_drums,
