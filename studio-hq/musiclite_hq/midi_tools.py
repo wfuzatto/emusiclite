@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
+import random
 import mido
 
 PPQ = 960
@@ -17,29 +18,51 @@ class Ev:
 def add_note(events: List[Ev], start: int, dur: int, note: int, vel: int, channel: int = 0):
     start = max(0, int(start))
     dur = max(1, int(dur))
-    events.append(Ev(start, "on", note, vel, channel))
-    events.append(Ev(start + dur, "off", note, 0, channel))
+    events.append(Ev(start, "on", int(note), max(1,min(127,int(vel))), channel))
+    events.append(Ev(start + dur, "off", int(note), 0, channel))
 
 def add_cc(events: List[Ev], tick: int, cc: int, value: int, channel: int = 0):
-    events.append(Ev(max(0, int(tick)), "cc", channel=channel, value=max(0,min(127,value)), control=cc))
+    events.append(Ev(max(0, int(tick)), "cc", channel=channel,
+                     value=max(0,min(127,int(value))), control=int(cc)))
 
-def write_midi(path, events: List[Ev], bpm: float, bars: int, numerator=4, denominator=4):
+def make_tempo_map(bpm: float, bars: int, form=None, seed: int = 7717, numerator: int = 4):
+    rng = random.Random(seed)
+    drift = 0.0
+    result = [(0, bpm)]
+    for bar in range(1, bars):
+        # Correlated random-walk timing; not independent random BPM per bar.
+        drift = max(-0.38, min(0.38, drift * .78 + rng.gauss(0, .075)))
+        section_push = 0.0
+        if form:
+            for s in form:
+                if s.start <= bar < s.end:
+                    if "chorus" in s.name:
+                        section_push = 0.16
+                    elif "verse" in s.name:
+                        section_push = -0.05
+                    elif s.name == "outro":
+                        section_push = -0.18
+                    if bar == s.start:
+                        section_push += 0.08
+                    break
+        result.append((bar * numerator * PPQ, bpm + drift + section_push))
+    return result
+
+def write_midi(path, events: List[Ev], bpm: float, bars: int, numerator=4, denominator=4,
+               tempo_map: Optional[list] = None):
     mf = mido.MidiFile(type=1, ticks_per_beat=PPQ)
     tr = mido.MidiTrack()
     mf.tracks.append(tr)
-    tr.append(mido.MetaMessage("track_name", name="MusicLite HQ", time=0))
+    tr.append(mido.MetaMessage("track_name", name="MusicLite HQ 0.3", time=0))
     tr.append(mido.MetaMessage("time_signature", numerator=numerator, denominator=denominator, time=0))
-    tr.append(mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(bpm), time=0))
 
-    # Gentle global tempo drift. Musicians remain locked together because every stem gets the same map.
-    tempo_events = []
-    for bar in range(1, bars):
-        phase = (bar % 8) / 8.0
-        drift = (phase - 0.5) * 0.26
-        tempo_events.append((bar * numerator * PPQ, mido.MetaMessage(
-            "set_tempo", tempo=mido.bpm2tempo(bpm + drift), time=0)))
+    if tempo_map is None:
+        tempo_map = [(0, bpm)]
 
     merged = []
+    for tick, value in tempo_map:
+        merged.append((int(tick), 0, mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(value), time=0)))
+
     for e in events:
         if e.kind == "on":
             msg = mido.Message("note_on", note=e.note, velocity=e.velocity, channel=e.channel, time=0)
@@ -48,15 +71,14 @@ def write_midi(path, events: List[Ev], bpm: float, bars: int, numerator=4, denom
         else:
             msg = mido.Message("control_change", control=e.control, value=e.value, channel=e.channel, time=0)
         merged.append((e.tick, 2 if e.kind == "off" else 1, msg))
-    for t, msg in tempo_events:
-        merged.append((t, 0, msg))
-    merged.sort(key=lambda x:(x[0], x[1]))
 
+    merged.sort(key=lambda x: (x[0], x[1]))
     last = 0
     for tick, _, msg in merged:
-        msg.time = max(0, tick-last)
+        msg.time = max(0, tick - last)
         tr.append(msg)
         last = tick
+
     end_tick = bars * numerator * PPQ
-    tr.append(mido.MetaMessage("end_of_track", time=max(1, end_tick-last)))
+    tr.append(mido.MetaMessage("end_of_track", time=max(1, end_tick - last)))
     mf.save(path)
