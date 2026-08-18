@@ -59,7 +59,6 @@ fetch "https://raw.githubusercontent.com/sgossner/VCSL/master/README.md" "$SAMPL
 
 echo "== Síntese local: tamborzão, kick, hats e sub 808 =="
 TMPPY="$(mktemp /tmp/musiclite-funk-synth.XXXXXX.py)"
-trap 'rm -f "$TMPPY"' EXIT
 cat > "$TMPPY" <<'PY'
 import math, random, struct, sys, wave
 from pathlib import Path
@@ -135,7 +134,11 @@ chmod 0644 "$TMPPY"
 sudo -u "$SERVICE_USER" python3 "$TMPPY" "$KIT" "$SUB"
 
 echo "== SFZ dedicado =="
-sudo -u "$SERVICE_USER" tee "$KIT/funk_carioca_kit.sfz" >/dev/null <<'SFZ'
+TMPKIT="$(mktemp /tmp/musiclite-funk-kit.XXXXXX.sfz)"
+TMPSUB="$(mktemp /tmp/musiclite-funk-sub.XXXXXX.sfz)"
+trap 'rm -f "$TMPPY" "$TMPKIT" "$TMPSUB"' EXIT
+
+cat > "$TMPKIT" <<'SFZ'
 <control> default_path=./
 
 <group> loop_mode=one_shot
@@ -169,11 +172,17 @@ sudo -u "$SERVICE_USER" tee "$KIT/funk_carioca_kit.sfz" >/dev/null <<'SFZ'
 <region> sample=Cabasa1_Hit_rr2_Mid.wav seq_position=2
 SFZ
 
-sudo -u "$SERVICE_USER" tee "$SUB/funk_808_sub.sfz" >/dev/null <<'SFZ'
+cat > "$TMPSUB" <<'SFZ'
 <control> default_path=./
 <group> ampeg_attack=0.002 ampeg_release=0.20 volume=-1.0
 <region> sample=808_C1.wav lokey=24 hikey=52 pitch_keycenter=24 pitch_keytrack=100
 SFZ
+
+if [ ! -s "$TMPKIT" ] || [ ! -s "$TMPSUB" ]; then
+  echo "ERRO: geração temporária dos SFZ falhou"; exit 40
+fi
+sudo install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0640 "$TMPKIT" "$KIT/funk_carioca_kit.sfz"
+sudo install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0640 "$TMPSUB" "$SUB/funk_808_sub.sfz"
 
 sudo chown -R "$SERVICE_USER":"$SERVICE_GROUP" "$SAMPLES"
 sudo chmod -R u+rwX,go-rwx "$SAMPLES"
