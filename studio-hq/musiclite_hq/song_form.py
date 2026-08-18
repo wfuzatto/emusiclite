@@ -48,7 +48,6 @@ def _hiphop_form(total_bars: int) -> List[Section]:
             add=min(extra,cap-base[idx][1]);base[idx][1]+=add;extra-=add
         plan=[tuple(x) for x in base]
     else:
-        # Start from a complete 44-bar song and distribute longer durations without sacrificing the final hook.
         base=[["intro",3,.42],["verse",9,.61],["hook",5,.96],["verse2",9,.68],["hook2",5,.98],["breakdown",3,.53],["final_hook",7,1.0],["outro",3,.37]]
         extra=max(0,total_bars-44)
         for idx,cap in ((1,13),(3,13),(2,8),(4,8),(6,10),(7,5)):
@@ -57,10 +56,38 @@ def _hiphop_form(total_bars: int) -> List[Section]:
         if extra:plan.insert(-1,("final_hook2",extra,1.0))
     return _fit_plan(total_bars,plan)
 
+def _chillstep_form(total_bars: int) -> List[Section]:
+    total_bars=max(4,int(total_bars))
+    if total_bars <= 16:
+        plan=[("intro",2,.34),("build",3,.58),("drop",4,.92),("breakdown",2,.38),("final_drop",4,1.0),("outro",1,.28)]
+    elif total_bars <= 32:
+        plan=[("intro",3,.32),("build",5,.60),("drop",8,.92),("breakdown",4,.38),("build2",3,.66),("final_drop",7,1.0),("outro",2,.28)]
+    elif total_bars <= 56:
+        # 52 bars is almost exactly 90 seconds at 140 BPM.
+        base=[["intro",4,.30],["build",8,.60],["drop",12,.93],["breakdown",8,.38],["build2",4,.68],["final_drop",12,1.0],["outro",4,.26]]
+        diff=total_bars-52
+        if diff > 0:
+            for idx,cap in ((2,16),(5,16),(3,10),(1,10)):
+                add=min(diff,cap-base[idx][1]);base[idx][1]+=add;diff-=add
+                if diff<=0:break
+        elif diff < 0:
+            need=-diff
+            for idx,minbars in ((2,8),(5,8),(3,4),(1,4),(0,2),(6,2)):
+                take=min(need,max(0,base[idx][1]-minbars));base[idx][1]-=take;need-=take
+                if need<=0:break
+        plan=[tuple(x) for x in base]
+    else:
+        base=[["intro",4,.30],["build",8,.60],["drop",14,.93],["breakdown",8,.38],["build2",6,.68],["drop2",12,.95],["breakdown2",6,.40],["final_drop",14,1.0],["outro",4,.26]]
+        extra=max(0,total_bars-sum(x[1] for x in base))
+        if extra:base.insert(-1,["final_drop2",extra,.98])
+        plan=[tuple(x) for x in base]
+    return _fit_plan(total_bars,plan)
+
 def make_form(total_bars: int, genre: str) -> List[Section]:
     total_bars=max(4,int(total_bars))
     if genre == "funk":return _funk_form(total_bars)
     if genre == "hiphop":return _hiphop_form(total_bars)
+    if genre == "chillstep":return _chillstep_form(total_bars)
     out: List[Section]=[]
     if total_bars <= 16:
         plan=[("intro",2,.48),("verse",4,.62),("chorus",4,.92),("bridge",2,.70),("final_chorus",3,1.0),("outro",1,.48)];remaining=total_bars
