@@ -15,7 +15,7 @@ O critic **não é um detector de IA** e não afirma qual take é artisticamente
 
 ## Por que Cover/Remix
 
-ACE-Step 1.5 suporta Cover/Remix no modelo Turbo. `audio_cover_strength` alto preserva mais a estrutura; valores menores permitem que o modelo recrie mais a execução/timbre.
+ACE-Step 1.5 suporta oficialmente Cover/Remix no modelo Turbo. `audio_cover_strength` alto preserva mais a estrutura; valores menores permitem que o modelo recrie mais a execução/timbre.
 
 O Neural Studio usa, por padrão:
 - take controlado
@@ -23,7 +23,7 @@ O Neural Studio usa, por padrão:
 - take criativo
 - um take livre `text2music` para explorar uma interpretação menos presa à referência
 
-O ACE-Step Turbo usa `shift=3.0`.
+O ACE-Step Turbo usa `shift=3.0`, conforme a recomendação do projeto upstream.
 
 ## Instalação
 
@@ -35,7 +35,7 @@ chmod +x upgrade_hq4.sh
 ./upgrade_hq4.sh
 ```
 
-O script preserva HQ3, atualiza o adaptador ACE-Step e instala um drop-in do systemd para que o Studio HQ leia o mesmo token local já usado pelo gerador.
+O script preserva HQ3, atualiza o adaptador ACE-Step e instala um `/etc/musiclite/neural.env` dedicado contendo somente o token local, URL e timeout necessários ao HQ; as demais credenciais do worker não são carregadas no processo HQ.
 
 ## Render máximo
 
