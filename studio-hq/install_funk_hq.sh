@@ -131,6 +131,7 @@ save(kit/'hat_closed.wav',hat(.14,34))
 save(kit/'hat_open.wav',hat(.62,8.5))
 save(sub/'808_C1.wav',eightoh())
 PY
+chmod 0644 "$TMPPY"
 sudo -u "$SERVICE_USER" python3 "$TMPPY" "$KIT" "$SUB"
 
 echo "== SFZ dedicado =="
