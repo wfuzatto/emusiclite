@@ -21,9 +21,12 @@ echo "== Dependências =="
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl rsync ffmpeg sox python3
 
-if [ ! -s "$FUNK/kit/funk_carioca_kit.sfz" ] || [ ! -s "$FUNK/808/funk_808_sub.sfz" ]; then
+if ! sudo -u "$SERVICE_USER" test -s "$FUNK/kit/funk_carioca_kit.sfz" || \
+   ! sudo -u "$SERVICE_USER" test -s "$FUNK/808/funk_808_sub.sfz"; then
   echo "== Instalando base eletrônica MusicLite =="
   bash "$SCRIPT_DIR/install_funk_hq.sh"
+else
+  echo "== Base eletrônica MusicLite já instalada =="
 fi
 
 sudo mkdir -p "$PIANO" "$BRASS" "$STRINGS"
@@ -158,14 +161,14 @@ sudo chmod -R u+rwX,go-rwx "$SAMPLES"
 
 echo "== Validação de áudio e SFZ =="
 for sfz in "$PIANO/hiphop_upright_piano.sfz" "$BRASS/hiphop_cinematic_brass.sfz" "$STRINGS/hiphop_cinematic_strings.sfz"; do
-  test -s "$sfz" || { echo "ERRO: SFZ ausente: $sfz"; exit 61; }
+  sudo -u "$SERVICE_USER" test -s "$sfz" || { echo "ERRO: SFZ ausente ou ilegível para $SERVICE_USER: $sfz"; exit 61; }
 done
 COUNT=$(sudo -u "$SERVICE_USER" find "$SAMPLES" -type f -name '*.wav' | wc -l)
 if [ "$COUNT" -lt 45 ]; then
   echo "ERRO: assets incompletos; esperados >=45 WAVs, encontrados $COUNT";exit 62
 fi
 while IFS= read -r wav; do
-  ffprobe -v error -show_entries stream=codec_type -of default=nw=1:nk=1 "$wav" | grep -q audio || { echo "ERRO: WAV inválido: $wav";exit 63; }
+  sudo -u "$SERVICE_USER" ffprobe -v error -show_entries stream=codec_type -of default=nw=1:nk=1 "$wav" | grep -q audio || { echo "ERRO: WAV inválido: $wav";exit 63; }
 done < <(sudo -u "$SERVICE_USER" find "$SAMPLES" -type f -name '*.wav' | sort)
 
 echo "== Deploy MusicLite Studio HQ 0.6 =="
