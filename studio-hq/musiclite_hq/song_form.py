@@ -47,18 +47,13 @@ def _hiphop_form(total_bars: int) -> List[Section]:
         for idx,cap in ((1,8),(3,8)):
             add=min(extra,cap-base[idx][1]);base[idx][1]+=add;extra-=add
         plan=[tuple(x) for x in base]
-    elif total_bars <= 44:
-        base=[["intro",3,.42],["verse",7,.61],["hook",5,.96],["verse2",7,.68],["hook2",5,.98],["breakdown",3,.53],["final_hook",7,1.0],["outro",3,.37]]
-        extra=max(0,total_bars-40)
-        for idx,cap in ((1,9),(3,9)):
+    else:
+        # Start from a complete 44-bar song and distribute longer durations without sacrificing the final hook.
+        base=[["intro",3,.42],["verse",9,.61],["hook",5,.96],["verse2",9,.68],["hook2",5,.98],["breakdown",3,.53],["final_hook",7,1.0],["outro",3,.37]]
+        extra=max(0,total_bars-44)
+        for idx,cap in ((1,13),(3,13),(2,8),(4,8),(6,10),(7,5)):
             add=min(extra,cap-base[idx][1]);base[idx][1]+=add;extra-=add
         plan=[tuple(x) for x in base]
-    else:
-        fixed=[("intro",4,.42),("verse",10,.61),("hook",8,.96),("verse2",10,.68),("hook2",8,.98),("breakdown",4,.53),("final_hook",8,1.0),("outro",4,.37)]
-        extra=total_bars-sum(x[1] for x in fixed);plan=[]
-        for name,bars,intensity in fixed:
-            cap=6 if "verse" in name else (4 if "hook" in name else 2)
-            add=min(max(0,extra),cap);extra-=add;plan.append((name,bars+add,intensity))
         if extra:plan.insert(-1,("final_hook2",extra,1.0))
     return _fit_plan(total_bars,plan)
 
