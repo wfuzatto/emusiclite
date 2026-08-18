@@ -5,6 +5,8 @@ BASE="/var/lib/musiclite/studio-hq"
 APP="/opt/musiclite/studio-hq"
 SAMPLES="$BASE/samples"
 MIN_FREE_GB="${MIN_FREE_GB:-12}"
+SERVICE_USER="${MUSICLITE_HQ_USER:-musiclite}"
+SERVICE_GROUP="${MUSICLITE_HQ_GROUP:-musiclite}"
 
 echo "== MusicLite Studio HQ installer =="
 echo "CPU-only offline renderer; existing musiclite-studio.service is not replaced."
@@ -24,6 +26,14 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   ffmpeg sox rsync p7zip-full python3-venv python3-dev curl ca-certificates
 
 git lfs install
+
+if ! getent group "$SERVICE_GROUP" >/dev/null 2>&1; then
+  sudo groupadd --system "$SERVICE_GROUP"
+fi
+if ! id "$SERVICE_USER" >/dev/null 2>&1; then
+  echo "Criando usuário de serviço $SERVICE_USER..."
+  sudo useradd --system --gid "$SERVICE_GROUP" --home-dir /var/lib/musiclite --shell /usr/sbin/nologin "$SERVICE_USER"
+fi
 
 sudo mkdir -p "$APP" "$SAMPLES"/{drums,bass,guitar,piano,accordion} "$BASE"/{output,work}
 sudo chown -R "$USER":"$USER" "$APP" "$BASE"
@@ -61,32 +71,29 @@ clone_lfs () {
 }
 
 echo "== Baixando bibliotecas reais =="
-# Bateria: multi-mic, 10 round-robins, até 5 velocity layers.
 clone_lfs https://github.com/sfzinstruments/WilkinsonAudio.NakedDrums.git "$SAMPLES/drums/NakedDrums"
-
-# Baixo: dois baixos de 5 cordas, CC0.
 clone_lfs https://github.com/sfzinstruments/karoryfer.black-and-blue-basses.git "$SAMPLES/bass/BlackAndBlue"
-
-# Guitarra elétrica extra: 4 velocity layers, 3 RR, releases/noises e acordes.
 clone_lfs https://github.com/sfzinstruments/karoryfer.emilyguitar.git "$SAMPLES/guitar/Emilyguitar"
 
-# Violão aço real (FreePats/FlameStudios), SFZ+WAV "best quality".
 if ! find "$SAMPLES/guitar/SteelAcoustic" -name '*.sfz' -print -quit 2>/dev/null | grep -q .; then
   mkdir -p "$SAMPLES/guitar/SteelAcoustic"
-  curl -fL --retry 3     https://freepats.zenvoid.org/Guitar/FSS-SteelStringGuitar/FSS-SteelStringGuitar-SFZ-20200521.tar.xz     -o /tmp/musiclite-steel-guitar.tar.xz
-  tar -xJf /tmp/musiclite-steel-guitar.tar.xz -C "$SAMPLES/guitar/SteelAcoustic" --strip-components=1 ||     tar -xJf /tmp/musiclite-steel-guitar.tar.xz -C "$SAMPLES/guitar/SteelAcoustic"
+  curl -fL --retry 3 \
+    https://freepats.zenvoid.org/Guitar/FSS-SteelStringGuitar/FSS-SteelStringGuitar-SFZ-20200521.tar.xz \
+    -o /tmp/musiclite-steel-guitar.tar.xz
+  tar -xJf /tmp/musiclite-steel-guitar.tar.xz -C "$SAMPLES/guitar/SteelAcoustic" --strip-components=1 || \
+    tar -xJf /tmp/musiclite-steel-guitar.tar.xz -C "$SAMPLES/guitar/SteelAcoustic"
   rm -f /tmp/musiclite-steel-guitar.tar.xz
 fi
 
-# Acordeon Hohner real, CC0, SFZ+WAV.
 if ! find "$SAMPLES/accordion/ButtonAccordionHN" -name '*.sfz' -print -quit 2>/dev/null | grep -q .; then
   mkdir -p "$SAMPLES/accordion/ButtonAccordionHN"
-  curl -fL --retry 3     'https://github.com/freepats/button-accordion-HN/releases/download/2024-03-29/ButtonAccordionHN-SFZ%2BWAV-20240329.7z'     -o /tmp/musiclite-accordion.7z
+  curl -fL --retry 3 \
+    'https://github.com/freepats/button-accordion-HN/releases/download/2024-03-29/ButtonAccordionHN-SFZ%2BWAV-20240329.7z' \
+    -o /tmp/musiclite-accordion.7z
   7z x -y /tmp/musiclite-accordion.7z -o"$SAMPLES/accordion/ButtonAccordionHN" >/dev/null
   rm -f /tmp/musiclite-accordion.7z
 fi
 
-# Piano: Yamaha C5, 48kHz/24-bit, 16 velocity layers.
 clone_lfs https://github.com/sfzinstruments/SalamanderGrandPiano.git "$SAMPLES/piano/Salamander"
 
 echo "== Instalando API HQ =="
@@ -98,6 +105,11 @@ python3 -m venv "$APP/venv"
 "$APP/venv/bin/pip" install --upgrade pip wheel
 "$APP/venv/bin/pip" install -r "$APP/requirements.txt"
 
+# O renderer grava em BASE, reservado ao usuário de serviço.
+sudo chown -R "$SERVICE_USER":"$SERVICE_GROUP" "$BASE"
+sudo chmod -R u+rwX,go-rwx "$BASE"
+sudo chmod -R a+rX "$APP"
+
 sudo tee /etc/systemd/system/musiclite-studio-hq.service >/dev/null <<EOF
 [Unit]
 Description=MusicLite Studio HQ - CPU multisample renderer
@@ -105,8 +117,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=$USER
-Group=$USER
+User=$SERVICE_USER
+Group=$SERVICE_GROUP
 WorkingDirectory=$APP
 Environment=MUSICLITE_HQ_BASE=$BASE
 Environment=OMP_NUM_THREADS=$(nproc)
@@ -123,6 +135,7 @@ EOF
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now musiclite-studio-hq.service
+sudo systemctl restart musiclite-studio-hq.service
 sleep 2
 
 echo
@@ -134,7 +147,10 @@ curl -fsS http://127.0.0.1:8094/health | python3 -m json.tool || {
 
 echo
 echo "INSTALADO."
-echo "Teste de 60s:"
-echo "curl -sS -X POST http://127.0.0.1:8094/render/test -H 'Content-Type: application/json' -d '{\"seconds\":60,\"bpm\":126}' | python3 -m json.tool"
+echo "Teste sertanejo:"
+echo "curl -sS -X POST http://127.0.0.1:8094/render/test -H 'Content-Type: application/json' -d '{\"seconds\":60,\"bpm\":126,\"genre\":\"sertanejo\"}' | python3 -m json.tool"
+echo
+echo "Teste rock:"
+echo "curl -sS -X POST http://127.0.0.1:8094/render/test -H 'Content-Type: application/json' -d '{\"seconds\":60,\"bpm\":132,\"genre\":\"rock\"}' | python3 -m json.tool"
 echo
 echo "Saída final: $BASE/output/"
