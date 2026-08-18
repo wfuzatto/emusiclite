@@ -1,0 +1,62 @@
+{
+  "sertanejo": {
+    "swing": 0.0,
+    "humanize_ms": 16,
+    "velocity_jitter": 9,
+    "guitar_strums": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+    "guitar_accents": [1.0, 0.68, 0.86, 0.66, 0.94, 0.66, 0.84, 0.7],
+    "kick": [0.0, 2.0, 2.75],
+    "snare": [1.0, 3.0],
+    "hihat": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+    "bass_beats": [0.0, 1.5, 2.0, 3.5],
+    "fill_every_bars": 8
+  },
+  "pop": {
+    "swing": 0.0,
+    "humanize_ms": 14,
+    "velocity_jitter": 8,
+    "guitar_strums": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+    "guitar_accents": [1.0, 0.7, 0.82, 0.68, 0.96, 0.72, 0.84, 0.72],
+    "kick": [0.0, 2.0],
+    "snare": [1.0, 3.0],
+    "hihat": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+    "bass_beats": [0.0, 1.5, 2.0, 3.5],
+    "fill_every_bars": 8
+  },
+  "rock": {
+    "swing": 0.0,
+    "humanize_ms": 12,
+    "velocity_jitter": 10,
+    "guitar_strums": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+    "guitar_accents": [1.0, 0.8, 0.9, 0.78, 1.0, 0.82, 0.92, 0.8],
+    "kick": [0.0, 1.5, 2.0, 2.75],
+    "snare": [1.0, 3.0],
+    "hihat": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+    "bass_beats": [0.0, 1.0, 2.0, 3.0],
+    "fill_every_bars": 4
+  },
+  "mpb": {
+    "swing": 0.035,
+    "humanize_ms": 20,
+    "velocity_jitter": 11,
+    "guitar_strums": [0.0, 0.75, 1.5, 2.0, 2.75, 3.5],
+    "guitar_accents": [0.95, 0.62, 0.78, 0.9, 0.66, 0.82],
+    "kick": [0.0, 2.5],
+    "snare": [1.0, 3.0],
+    "hihat": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+    "bass_beats": [0.0, 1.5, 2.5, 3.5],
+    "fill_every_bars": 8
+  },
+  "funk": {
+    "swing": 0.02,
+    "humanize_ms": 9,
+    "velocity_jitter": 7,
+    "guitar_strums": [0.0, 1.5, 2.5, 3.5],
+    "guitar_accents": [0.8, 0.7, 0.85, 0.72],
+    "kick": [0.0, 1.75, 2.5, 3.25],
+    "snare": [1.0, 3.0],
+    "hihat": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+    "bass_beats": [0.0, 1.75, 2.5, 3.25],
+    "fill_every_bars": 4
+  }
+}
