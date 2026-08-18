@@ -15,7 +15,7 @@ def normalize_genre(value=None,prompt=None):
         if slug not in aliases: raise ValueError(f"Genero nao suportado: {value}. Opcoes: {', '.join(SUPPORTED_GENRES)}")
         return aliases[slug]
     text=_slug(prompt or "")
-    if any(x in text for x in ("funk_carioca","baile_funk","mandelao","tamborzao")): return "funk"
+    if any(x in text for x in ("funk","baile_funk","mandelao","tamborzao")): return "funk"
     if any(x in text for x in ("rock","metal","guitarra_distorcida","hard_rock")): return "rock"
     return "sertanejo"
 def genre_info():
