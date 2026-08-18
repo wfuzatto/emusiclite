@@ -17,8 +17,38 @@ def _add(out: List[Section], name: str, bars: int, intensity: float):
     if bars:
         out.append(Section(name,sum(x.bars for x in out),bars,intensity))
 
+def _funk_form(total_bars: int) -> List[Section]:
+    out: List[Section]=[]
+    total_bars=max(4,int(total_bars))
+    if total_bars <= 12:
+        plan=[("intro",1,.45),("verse",2,.64),("build",2,.78),("drop",3,1.0),("break",1,.56),("final_drop",2,1.0),("outro",1,.42)]
+    elif total_bars <= 28:
+        plan=[("intro",2,.45),("verse",4,.64),("build",2,.80),("drop",6,1.0),("break",2,.55),("verse2",3,.69),("final_drop",6,1.0),("outro",2,.42)]
+    else:
+        # For longer songs distribute the extra bars without turning the groove into a static loop.
+        fixed=[("intro",3,.44),("verse",6,.63),("build",3,.80),("drop",8,1.0),("break",3,.54),("verse2",6,.69),("build2",3,.84),("final_drop",8,1.0),("outro",2,.40)]
+        extra=total_bars-sum(x[1] for x in fixed)
+        plan=[]
+        for name,bars,intensity in fixed:
+            cap=4 if name in ("drop","final_drop","verse","verse2") else (2 if "build" in name else 1)
+            add=min(max(0,extra),cap); extra-=add
+            plan.append((name,bars+add,intensity))
+        if extra:
+            # Put any remaining duration in a second drop rather than stretching every section.
+            plan.insert(-1,("drop2",extra,.97))
+    remaining=total_bars
+    for idx,(name,bars,intensity) in enumerate(plan):
+        later_min=1 if idx < len(plan)-1 else 0
+        use=min(bars,max(0,remaining-later_min))
+        _add(out,name,use,intensity); remaining-=use
+    if remaining:
+        _add(out,"outro",remaining,.40)
+    return out
+
 def make_form(total_bars: int, genre: str) -> List[Section]:
     total_bars=max(4,int(total_bars))
+    if genre == "funk":
+        return _funk_form(total_bars)
     out: List[Section]=[]
 
     if total_bars <= 16:
