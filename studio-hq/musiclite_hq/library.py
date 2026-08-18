@@ -26,11 +26,15 @@ def all_instruments():
         "guitar_acoustic": _find(SAMPLES/"guitar"/"SteelAcoustic", ("steel","guitar")),
         "piano": _find(SAMPLES/"piano"/"Salamander", ("salamander",)),
         "accordion": _find(SAMPLES/"accordion"/"ButtonAccordionHN", ("accordion",)),
+        "funk_kit": _find(SAMPLES/"funk"/"kit", ("funk","kit")),
+        "funk_808": _find(SAMPLES/"funk"/"808", ("808","sub")),
     }
 
 def instruments(genre="sertanejo"):
     genre = normalize_genre(genre)
     lib = all_instruments()
+    if genre == "funk":
+        return {"drums": lib["funk_kit"], "sub": lib["funk_808"]}
     bass = lib["bass_hq"] or lib["bass_fallback"]
     if genre == "rock":
         guitar = lib["guitar_metal_hq"] or lib["guitar_standard_hq"] or lib["guitar_electric_fallback"]
@@ -45,6 +49,8 @@ def instruments(genre="sertanejo"):
 def fallback_instrument(name: str, genre="sertanejo"):
     genre = normalize_genre(genre)
     lib = all_instruments()
+    if genre == "funk":
+        return None
     if name == "bass":
         return lib["bass_fallback"]
     if name.startswith("guitar_") and genre == "rock":
