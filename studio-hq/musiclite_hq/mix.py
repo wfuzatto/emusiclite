@@ -8,7 +8,15 @@ def _prep(src,dst,kind,genre):
     if genre=="rock" and kind in ("guitar_l","guitar_r"):
         process_rock_guitar(src,dst,"left" if kind.endswith("_l") else "right");return
     if genre=="rock" and kind=="bass":process_rock_bass(src,dst);return
-    if genre=="hiphop":
+    if genre=="chillstep":
+        filt={
+            "drums":"highpass=f=24,lowpass=f=19500,equalizer=f=78:t=q:w=.9:g=.8,equalizer=f=320:t=q:w=1.0:g=-.7,equalizer=f=7600:t=q:w=.9:g=.55,acompressor=threshold=.23:ratio=1.7:attack=14:release=125:makeup=1.04",
+            "sub":"highpass=f=22,lowpass=f=185,equalizer=f=48:t=q:w=.8:g=1.1,equalizer=f=115:t=q:w=.9:g=-.6,acompressor=threshold=.24:ratio=1.45:attack=30:release=220:makeup=1.03",
+            "pad":"highpass=f=92,lowpass=f=12500,equalizer=f=310:t=q:w=.9:g=-1.0,equalizer=f=4200:t=q:w=.9:g=.45,tremolo=f=2.333:d=.18,acompressor=threshold=.31:ratio=1.18:attack=45:release=260",
+            "pluck":"highpass=f=145,lowpass=f=15000,equalizer=f=480:t=q:w=.9:g=-.8,equalizer=f=6200:t=q:w=.8:g=.55,aecho=.82:.75:215|325:.13|.08,acompressor=threshold=.30:ratio=1.16:attack=24:release=190",
+            "lead":"highpass=f=150,lowpass=f=14500,equalizer=f=650:t=q:w=1.0:g=-.55,equalizer=f=3600:t=q:w=.9:g=.65,aecho=.84:.72:270|405:.11|.07,acompressor=threshold=.30:ratio=1.18:attack=28:release=210",
+        }[kind]
+    elif genre=="hiphop":
         filt={
             "drums":"highpass=f=24,lowpass=f=19500,equalizer=f=62:t=q:w=.9:g=1.2,equalizer=f=220:t=q:w=1:g=-1.0,equalizer=f=7200:t=q:w=1:g=.8,acompressor=threshold=.18:ratio=2.2:attack=10:release=105:makeup=1.10",
             "sub":"highpass=f=22,lowpass=f=175,equalizer=f=50:t=q:w=.9:g=1.5,equalizer=f=108:t=q:w=.9:g=-.6,acompressor=threshold=.20:ratio=2.0:attack=18:release=180:makeup=1.08",
@@ -43,6 +51,8 @@ def mix_master(stems,out:Path,work:Path,genre="sertanejo"):
         dst=work/f"{kind}_prep.wav";_prep(src,dst,kind,genre);prepared[kind]=dst
     if genre=="rock":
         volumes={"drums":.92,"bass":.82,"guitar_l":.72,"guitar_r":.72};room_names=[n for n in ("guitar_l","guitar_r") if n in prepared];room_amount=.075;target="-13.5";lra="9";limit=.91
+    elif genre=="chillstep":
+        volumes={"drums":.82,"sub":.88,"pad":.60,"pluck":.50,"lead":.56};room_names=[n for n in ("pad","pluck","lead") if n in prepared];room_amount=.16;target="-11.8";lra="8";limit=.94
     elif genre=="funk":
         volumes={"drums":.96,"sub":.92};room_names=[];room_amount=0;target="-11.5";lra="7";limit=.94
     elif genre=="hiphop":
@@ -55,7 +65,9 @@ def mix_master(stems,out:Path,work:Path,genre="sertanejo"):
         room=work/"room.wav";convolve_room(room_src,room);pre=work/"premaster.wav"
         _run(["ffmpeg","-y","-loglevel","error","-i",str(dry),"-i",str(room),"-filter_complex",f"[1:a]volume={room_amount}[r];[0:a][r]amix=2:normalize=0,alimiter=limit=.93[p]","-map","[p]",str(pre)])
     else:pre=dry
-    if genre=="funk":
+    if genre=="chillstep":
+        master=f"highpass=f=20,equalizer=f=48:t=q:w=.8:g=.45,equalizer=f=260:t=q:w=1:g=-.45,equalizer=f=8500:t=q:w=.9:g=.35,acompressor=threshold=.32:ratio=1.15:attack=36:release=230,alimiter=limit=.95,loudnorm=I={target}:TP=-0.9:LRA={lra}"
+    elif genre=="funk":
         master=f"highpass=f=20,equalizer=f=42:t=q:w=.8:g=.7,acompressor=threshold=.30:ratio=1.22:attack=24:release=150,alimiter=limit=.95,loudnorm=I={target}:TP=-0.8:LRA={lra}"
     elif genre=="hiphop":
         master=f"highpass=f=20,equalizer=f=48:t=q:w=.8:g=.5,equalizer=f=260:t=q:w=1:g=-.35,acompressor=threshold=.30:ratio=1.20:attack=30:release=190,alimiter=limit=.95,loudnorm=I={target}:TP=-0.8:LRA={lra}"
